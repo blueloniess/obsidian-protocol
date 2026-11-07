@@ -1,0 +1,9 @@
+{
+  "version": "3.7.0",
+  "logic": "npm test PASS",
+  "browser": "mobile viewport, drag, silent XP, batch claims, pending carryover, offline reload PASS; zero JS exceptions",
+  "android": "v2/v3 signature, alignment, embedded resources PASS",
+  "devicePerformance": "not measured on physical Android",
+  "reference": "local user recording observed, Canvas 2.5D interpretation",
+  "sha256": "41b1724b37f94078ae65c533b48565303b1830cedd218ef206dae37b3728e97e"
+}

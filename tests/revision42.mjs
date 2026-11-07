@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import {normalizeSquad,makeGate,Runway} from '../js/runway.js';
+import {rollLoot,unlockHits,weaponStats} from '../js/loot.js';
+import {shopCost,permanent} from '../js/shop.js';
+import {validate,fresh} from '../js/save.js';
+import {validateProgress,freshProgress} from '../js/progression.js';
+assert.equal(normalizeSquad(999999999999999999n),999999999999999999n);
+for(let i=0;i<1000;i++)assert.equal(makeGate(i).kind,'add');
+assert.equal(validateProgress({...freshProgress(),weapon:12345}).weapon,12345);
+const saved=fresh();saved.shop.damage=100;assert.equal(validate(saved).shop.damage,100);
+assert.ok(shopCost(20)>shopCost(10)*10);assert.ok(permanent('damage',21)-permanent('damage',20)>permanent('damage',2)-permanent('damage',1));
+assert.equal(unlockHits('recruit'),180);
+const test=(luck,r)=>{const vals=[.5,r,.1];return rollLoot(luck,()=>vals.shift());};assert.equal(test(0,.185),'damage');assert.equal(test(.01,.185),'blast');
+const p={damage:14,rate:.72,weapon:30};assert.ok(weaponStats(p,1000).rate>weaponStats(p,30).rate);assert.ok(weaponStats(p,1000).damage>weaponStats(p,30).damage);
+console.log('PASS: additive-only gates, uncapped weapon/army/shop, rising marginal gains/costs, exact +1pp luck threshold, 180-hit rare recruitment');

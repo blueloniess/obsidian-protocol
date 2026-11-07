@@ -1,0 +1,43 @@
+{
+  "version": "3.4.0",
+  "nodeSuites": [
+    "logic",
+    "runway",
+    "progression",
+    "balance",
+    "campaign"
+  ],
+  "browser": "PASS",
+  "offlineResources": 20,
+  "limits": {
+    "army": 120,
+    "multiplier": 3,
+    "addGate": 12
+  },
+  "upgrades": 36,
+  "branches": [
+    "artillery",
+    "elements",
+    "engineer"
+  ],
+  "adaptive": "5-second exponential response; new-spawn HP and density, existing HP unchanged",
+  "campaignSimulation": [
+    {
+      "stage": 1,
+      "seconds": 89,
+      "level": 14
+    },
+    {
+      "stage": 2,
+      "seconds": 55,
+      "level": 19
+    },
+    {
+      "stage": 3,
+      "seconds": 52,
+      "level": 21
+    }
+  ],
+  "apk": "v2/v3 signature, alignment and embedded resource comparison PASS",
+  "physicalAndroidDevice": "not tested"
+}

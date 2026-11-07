@@ -1,0 +1,16 @@
+{
+  "version": "3.6.0",
+  "tests": "all six Node suites and mobile browser PASS",
+  "warningScenarios": [
+    3,
+    7,
+    10,
+    15
+  ],
+  "standing": "defeated in each warning scenario",
+  "dodging": "survived each 40-second warning scenario",
+  "fullCampaign": "first three stages passed with warning-aware input",
+  "offlineResources": 21,
+  "apk": "signature v2/v3, alignment, embedded-resource comparison PASS",
+  "physicalPhone": "not tested"
+}

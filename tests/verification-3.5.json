@@ -1,0 +1,44 @@
+{
+  "version": "3.5.0",
+  "nodeSuites": [
+    "logic",
+    "runway",
+    "progression",
+    "balance",
+    "campaign"
+  ],
+  "browser": "PASS",
+  "offlineResources": 20,
+  "armyCap": null,
+  "gate": {
+    "addCap": 12,
+    "multiplierStep": 0.1,
+    "doubleChargeSeconds": 16.4,
+    "hostileChanceAt20": 0.8,
+    "hostileChanceAt100": 0.9,
+    "chargingScrollFactor": 0.25,
+    "simultaneous": 1
+  },
+  "campaignSimulation": [
+    {
+      "stage": 1,
+      "seconds": 89,
+      "squad": 37,
+      "kills": 199
+    },
+    {
+      "stage": 2,
+      "seconds": 69,
+      "squad": 147,
+      "kills": 433
+    },
+    {
+      "stage": 3,
+      "seconds": 51,
+      "squad": 278,
+      "kills": 765
+    }
+  ],
+  "apk": "v2/v3 signature, alignment, bundled resources PASS",
+  "physicalAndroidDevice": "not tested"
+}

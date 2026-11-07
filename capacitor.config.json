@@ -1,0 +1,10 @@
+{
+  "appId": "com.obsidian.protocol",
+  "appName": "黑曜防线",
+  "webDir": "www",
+  "backgroundColor": "#080916",
+  "android": {
+    "backgroundColor": "#080916",
+    "allowMixedContent": false
+  }
+}

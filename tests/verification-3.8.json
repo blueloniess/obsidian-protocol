@@ -1,0 +1,23 @@
+{
+  "version": "3.8.0",
+  "logic": "all 7 suites PASS",
+  "browser": "mobile touch, offline reload, silent claims, red edges, standalone desktop file PASS; zero exceptions",
+  "lateBuildComparison": {
+    "campaign": {
+      "offensePierce": {
+        "kills": 24,
+        "leaks": 0,
+        "survived": true
+      },
+      "utility": {
+        "kills": 0,
+        "leaks": 12,
+        "survived": false
+      }
+    },
+    "endless": "same results"
+  },
+  "apk": "v2/v3, alignment and embedded resource equality PASS",
+  "physicalAndroidPerformance": "not measured",
+  "sha256": "5d9a61af01301d8cf6bf2e98e344e53bbed613006814ee44da8cd2fe26fe2c69"
+}

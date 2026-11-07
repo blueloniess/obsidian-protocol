@@ -1,0 +1,23 @@
+{
+  "version": "3.3.0",
+  "logic": "PASS",
+  "progression": "PASS",
+  "browser": "PASS",
+  "offlineResources": 20,
+  "firstStage": {
+    "openingEnemies": 3,
+    "peakEnemiesInBotRun": 9,
+    "clearSeconds": 55,
+    "kills": 89
+  },
+  "xpThresholds": [
+    24,
+    31,
+    40,
+    52,
+    67
+  ],
+  "carry": "stats, synergies, level, XP, next XP threshold, cleared squad; verified reload/import/failure/legacy migration",
+  "apk": "v2/v3, alignment, asset consistency PASS",
+  "physicalAndroidDevice": "not tested"
+}

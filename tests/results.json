@@ -1,0 +1,65 @@
+{
+  "version": "3.1.0",
+  "gameplay": "horizontal squad runner",
+  "logic": "PASS",
+  "browser": "PASS",
+  "errors": 0,
+  "runtimeResourcesCached": 19,
+  "mobileViewport": "412x915",
+  "renderDPR": 2,
+  "verified": [
+    "uncapped BigInt gates and population",
+    "weighted volleys accurately represent 10^400 soldiers",
+    "shots charge a gate once and pass through",
+    "division to multiplication",
+    "loss, pause, upgrades, score, offline reload",
+    "opening horde, nine-second boss and full first-stage simulation",
+    "real browser touch controls and first boss"
+  ],
+  "notVerified": [
+    "55fps on physical Android hardware",
+    "OEM-specific interactions"
+  ],
+  "firstStageSimulation": {
+    "peakLiveEnemies": 82,
+    "firstBossSeconds": 9,
+    "kills": 336
+  },
+  "controlledComparison": {
+    "timeWindowSeconds": 6,
+    "zombies": 72,
+    "bosses": 1,
+    "twoTroopers": {
+      "kills": 12,
+      "bossDamage": 20,
+      "survived": false
+    },
+    "fortyEightTroopers": {
+      "kills": 72,
+      "bossDamage": 6229,
+      "survived": true
+    }
+  },
+  "android": {
+    "artifact": "Obsidian-Protocol-3.1.0-Android.apk",
+    "package": "com.obsidian.protocol",
+    "minSdk": 26,
+    "targetSdk": 35,
+    "sha256": "96fb91b456bb41fb2b9a18b8845abfc225947e6c08f085b772cd65e575e68910",
+    "bytes": 59137,
+    "signatureSchemes": [
+      "v2",
+      "v3"
+    ],
+    "emulator": "Android 14 / API 34 / x86_64 / 720x1600",
+    "webview": "113.0.5672.136",
+    "verified": [
+      "signed APK alignment and assets",
+      "ADB install and offline cold launch with airplane mode and Wi-Fi disabled",
+      "portrait one-finger strafe",
+      "system Back pause and resume",
+      "sleep and wake during combat",
+      "tall-cutout emulation and HUD clearance"
+    ]
+  }
+}

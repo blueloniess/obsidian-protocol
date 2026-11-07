@@ -1,0 +1,8 @@
+{
+  "version": "4.3.0",
+  "logic": "revision43 PASS",
+  "browser": "startup and 3-second simulation PASS",
+  "apk": "signature/alignment/resource equality PASS",
+  "physicalDevice": "not tested",
+  "sha256": "c3ef59030c49d665add36a5a3114f7c2f93105759ba37d29a60470daa03ce62f"
+}

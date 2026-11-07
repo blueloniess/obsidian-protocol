@@ -1,0 +1,111 @@
+import {writeFile,mkdir} from 'node:fs/promises';
+import assert from 'node:assert/strict';
+const tab=await(await fetch('http://127.0.0.1:9229/json/new?about:blank',{method:'PUT'})).json();
+const ws=new WebSocket(tab.webSocketDebuggerUrl);await new Promise(r=>ws.onopen=r);let id=0;const pending=new Map(),errors=[];ws.onmessage=e=>{const m=JSON.parse(e.data);if(m.id){const p=pending.get(m.id);pending.delete(m.id);m.error?p.reject(m.error):p.resolve(m.result);}else if(m.method==='Runtime.exceptionThrown')errors.push(m.params.exceptionDetails);};
+const send=(method,params={})=>new Promise((resolve,reject)=>{const n=++id;pending.set(n,{resolve,reject});ws.send(JSON.stringify({id:n,method,params}));});
+const wait=ms=>new Promise(r=>setTimeout(r,ms));
+async function evaluate(expression){const r=await send('Runtime.evaluate',{expression,awaitPromise:true,returnByValue:true});if(r.exceptionDetails)throw Error(JSON.stringify(r.exceptionDetails));return r.result.value;}
+try{
+ await send('Runtime.enable');await send('Page.enable');await send('Network.enable');await send('Network.clearBrowserCache');await send('Storage.clearDataForOrigin',{origin:'http://127.0.0.1:8766',storageTypes:'all'});await send('Emulation.setDeviceMetricsOverride',{width:412,height:915,deviceScaleFactor:2.6,mobile:true});
+ await send('Page.navigate',{url:'http://127.0.0.1:8766/'});await wait(2200);
+ assert.equal(await evaluate('document.querySelector("h1").textContent'),'黑曜防线.');
+ assert.equal(await evaluate('window.obsidianDiagnostics().dpr'),2);
+ await evaluate('navigator.serviceWorker.ready');await wait(300);
+ const resources=await evaluate('(async()=>{const c=await caches.open("obsidian-protocol-android-v3-8");return (await c.keys()).length})()');assert.equal(resources,21);
+ await mkdir('screenshots',{recursive:true});await writeFile('screenshots/menu.png',Buffer.from((await send('Page.captureScreenshot')).data,'base64'));
+ await evaluate('document.querySelector("#campaign").click()');await wait(120);
+ await writeFile('screenshots/runway.png',Buffer.from((await send('Page.captureScreenshot')).data,'base64'));
+ await wait(1550);
+ let d=await evaluate('obsidianDiagnostics()');assert.equal(d.state,'playing');assert.ok(d.time>.5);
+ const inspect = code => evaluate('(async()=>{const {game:g}=await import("./js/main.js");'+code+'})()');
+ assert.equal(await inspect('return g.enemies.items.filter(e=>e.active).every(e=>e.x>=84&&e.x<=636) && g.runway.rows.every(r=>r.gates.every(t=>t.x===192))'),true);
+ const startPosition = await inspect('return [g.p.x,g.p.y,Number(g.p.squad)]');
+ assert.equal(startPosition[2],2);
+ await send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:85,y:655,id:1}]});
+ await send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:280,y:750,id:1}]});
+ await wait(700);
+ await send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+ const moved = await inspect('return [g.p.x,g.p.y]');
+ assert.ok(moved[0]>430);
+ assert.equal(moved[1],startPosition[1]);
+ await send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:280,y:750,id:2}]});
+ await send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:85,y:750,id:2}]});
+ await wait(500); await send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+ await inspect("g.runway.rows[0].y=g.p.y;Object.assign(g.runway.rows[0].gates[0],{kind:'add',value:20n,lastHit:-Infinity});g.p.x=528;g.runway.update(g,1/60);");
+ assert.ok(await inspect('return g.p.squad>2n'),'左侧强化门扩队');
+ assert.equal(await inspect('return g.input.pointer'),null);
+ if(await inspect('return g.state')==='upgrade') await evaluate('document.querySelector("#pick-0").click()');
+ await evaluate('Object.defineProperty(document,"hidden",{configurable:true,value:true});document.dispatchEvent(new Event("visibilitychange"))');
+ const hiddenTime=await evaluate('obsidianDiagnostics().time');await wait(250);assert.equal(await evaluate('obsidianDiagnostics().time'),hiddenTime);
+ await evaluate('delete document.hidden;document.dispatchEvent(new Event("visibilitychange"))');await wait(150);assert.ok(['playing','upgrade'].includes(await evaluate('obsidianDiagnostics().state')));
+ await evaluate('document.querySelector("#pick-0")?.click();document.querySelector("#pause").click()');assert.equal(await inspect('return g.state'),'paused');let t=await evaluate('obsidianDiagnostics().time');await wait(300);assert.equal(await evaluate('obsidianDiagnostics().time'),t);await evaluate('document.querySelector("#resume").click()');
+ // 首关完整推进由 runway.mjs 验证；浏览器构造关底场景检查布局和渲染。
+ await inspect('g.enemies.clear();g.mode.local=2;g.mode.wave=2;g.mode.next(g);g.p.squad=250n;g.p.nextXP=1e9;g.p.xp=0;');
+ await wait(2400);
+ assert.ok(await inspect('return g.enemies.items.some(e=>e.active&&e.type===4&&e.x===360)'));
+ await writeFile('screenshots/first-boss.png',Buffer.from((await send('Page.captureScreenshot')).data,'base64'));
+ // 模块接口用于确定性集成测试，不在生产界面提供调试按钮。
+ await inspect("if(g.state==='playing')g.p.xp=g.p.nextXP;");await wait(100);assert.equal(await evaluate('obsidianDiagnostics().state'),'playing');assert.equal(await evaluate('document.querySelectorAll(".card").length'),0);await evaluate('document.querySelector("#claim").click()');assert.equal(await evaluate('document.querySelectorAll(".card").length'),3);await writeFile('screenshots/upgrade.png',Buffer.from((await send('Page.captureScreenshot')).data,'base64'));await evaluate('document.querySelector("#pick-0").click()');
+ await evaluate('(async()=>{const {game:g}=await import("./js/main.js");const {UPGRADES}=await import("./js/upgrades.js");g.p.shots=5;g.p.pierce=3;g.p.chain=2;g.p.freeze=1;g.p.aura=2;g.p.burn=2;g.p.pendingUpgrades=1;g.applyUpgrade(UPGRADES[0]);g.p.hp=g.p.maxHP=120;g.p.invul=100;g.p.nextXP=1e9;g.p.xp=0;for(let i=0;i<100;i++){const e=g.spawnEnemy(i%4);if(!e)break;e.x=90+(i%10)*59;e.y=50-Math.floor(i/10)*45;}g.spawnEnemy(4);})()');await wait(3200);
+ assert.equal(await evaluate('(async()=>(await import("./js/main.js")).game.p.synergies.size)()'),3);
+ await writeFile('screenshots/combat.png',Buffer.from((await send('Page.captureScreenshot')).data,'base64'));
+ d=await evaluate('obsidianDiagnostics()');assert.equal(d.state,'playing');assert.ok(d.enemies<=120&&d.bullets<=400&&d.particles<=300);
+ // 定点构造120人和小数门，确认人数显示不封顶、预期收益可见。
+ await inspect("g.runway.rows=[];g.runway.addRow(620,120n);g.runway.rows[0].gates[0]={kind:'multiply',value:11n,scale:10n,x:192,charge:0n,lastHit:-Infinity};g.p.squad=120n;g.p.x=192;g.p.nextXP=1e9;g.p.xp=0;");
+ await wait(150);await writeFile('screenshots/decimal-gate.png',Buffer.from((await send('Page.captureScreenshot')).data,'base64'));
+ assert.ok(await inspect("const {gateResult}=await import('./js/runway.js');return gateResult(120n,{kind:'multiply',value:11n,scale:10n})===132n"));
+ // 后期双侧预警与护甲状态真实渲染；触摸移到中央缺口。
+ await inspect("g.start('campaign',7);g.enemies.clear();g.mode.remaining=0;g.p.squad=60n;g.p.nextXP=1e9;g.p.xp=0;g.p.x=g.p.px=192;const boss=g.spawnEnemy(4);boss.strikes=1;boss.strikeTimer=.01;");
+ await wait(250);
+ assert.equal(await inspect('return g.hazards.count'),2);
+ await writeFile('screenshots/boss-warning.png',Buffer.from((await send('Page.captureScreenshot')).data,'base64'));
+ await send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:110,y:740,id:7}]});
+ await send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:206,y:740,id:7}]});
+ await wait(500);await send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await wait(1200);
+ assert.ok(await inspect('return Math.abs(g.p.x-360)<20&&g.p.hp===g.p.maxHP'));
+ // 静默升级不释放正在拖动的指针；开启/关闭不重抽；批领保留等级并跨关。
+ await inspect("const {save,fresh}=await import('./js/save.js');save.data=fresh();g.start('campaign',1);g.input.pointer=77;g.p.xp=147;g.levelUp();return g.p.pendingUpgrades;");
+ assert.equal(await inspect('return g.p.pendingUpgrades'),4);
+ assert.equal(await inspect('return g.input.pointer'),77);
+ assert.equal(await inspect('return g.state'),'playing');
+ await inspect('g.openUpgrades();');
+ assert.equal(await inspect('return g.input.pointer'),77);
+ const clock=await inspect('return g.time');await wait(300);assert.ok(await inspect('return g.time')>clock);
+ await evaluate('document.querySelector("#pick-0").click();document.querySelector("#claim-all").click()');
+ assert.equal(await inspect('return g.p.pendingUpgrades'),0);
+ assert.equal(await inspect('return g.p.upgradeHistory.length'),4);
+ assert.equal(await inspect('return g.state'),'playing');
+ await inspect('g.input.reset();g.p.xp=g.p.nextXP;g.levelUp();g.gems.clear();g.finish(true);document.querySelector("#again").click();');
+ assert.equal(await inspect('return g.p.pendingUpgrades'),1);
+ await inspect("g.start('endless');g.p.squad=80n;const {breach}=await import('./js/entities.js');breach(g,g.spawnEnemy(0));g.render(1);");
+ assert.equal(await inspect('return g.p.hp'),110);assert.ok(await inspect('return g.edgeWarning')>0);
+ await writeFile('screenshots/breach-warning.png',Buffer.from((await send('Page.captureScreenshot')).data,'base64'));
+ // 专精卡片、技能路线及返回操作走真实移动端UI。
+ await inspect("const {save,fresh}=await import('./js/save.js');save.data=fresh();g.start('campaign',1);g.p.level=4;g.p.nextXP=52;g.p.xp=52;g.levelUp();g.openUpgrades();");
+ assert.equal(await evaluate('document.querySelectorAll(".card").length'),3);
+ assert.ok(await evaluate('document.querySelector("#overlay").textContent.includes("工程专精")'));
+ assert.equal(await evaluate('document.querySelector("#reroll").disabled'),true);
+ await writeFile('screenshots/specializations.png',Buffer.from((await send('Page.captureScreenshot')).data,'base64'));
+ await evaluate('document.querySelector("#pick-0").click();document.querySelector("#pause").click();document.querySelector("#build").click()');
+ assert.ok(await evaluate('document.querySelector("#overlay").textContent.includes("核心处决")'));
+ await writeFile('screenshots/skill-tree.png',Buffer.from((await send('Page.captureScreenshot')).data,'base64'));
+ await evaluate('document.querySelector("#back").click();document.querySelector("#resume").click()');
+ // 使用生产结算和下一关按钮检查继承，再重载页面检查存档恢复。
+ const carried=await inspect("const {save,fresh}=await import('./js/save.js');const {UPGRADES}=await import('./js/upgrades.js');save.data=fresh();g.start('campaign',1);g.p.xp=g.p.nextXP+5;g.levelUp();g.applyUpgrade(UPGRADES[0]);g.persistGrowth();g.p.squad=45n;g.gems.clear();g.finish(true);document.querySelector('#again').click();return {stage:g.mode.stage,level:g.p.level,xp:g.p.xp,nextXP:g.p.nextXP,damage:g.p.damage,squad:String(g.p.squad)};");
+ assert.deepEqual(carried,{stage:2,level:2,xp:5,nextXP:31,damage:28.32,squad:'45'});
+ await send('Page.reload');await wait(800);
+ assert.ok(await evaluate('document.querySelector("#campaign").textContent.includes("LV.2")'));
+ await evaluate('document.querySelector("#campaign").click()');
+ assert.deepEqual(await inspect('return {stage:g.mode.stage,level:g.p.level,xp:g.p.xp,nextXP:g.p.nextXP,damage:g.p.damage,squad:String(g.p.squad)}'),carried);
+ await evaluate('(async()=>{const {game:g}=await import("./js/main.js");g.start("endless");g.score=12345;g.finish(false);})()');
+ assert.equal(await evaluate('(async()=>(await import("./js/save.js")).save.data.top[0])()'),12345);
+ await send('Network.emulateNetworkConditions',{offline:true,latency:0,downloadThroughput:0,uploadThroughput:0});await send('Page.reload');await wait(1000);assert.equal(await evaluate('document.querySelector("h1").textContent'),'黑曜防线.');await evaluate('document.querySelector("#endless").click()');await wait(600);assert.equal(await evaluate('obsidianDiagnostics().state'),'playing');
+ await send('Network.emulateNetworkConditions',{offline:false,latency:0,downloadThroughput:-1,uploadThroughput:-1});
+ await send('Emulation.setDeviceMetricsOverride',{width:1440,height:900,deviceScaleFactor:1,mobile:false});
+ await send('Page.navigate',{url:'file:///D:/DSH/obsidian-protocol/dist/Obsidian-Protocol-3.8.0-Web.html'});await wait(1000);
+ assert.equal(await evaluate('document.querySelector("h1").textContent'),'黑曜防线.');
+ await evaluate('document.querySelector("#endless").click()');await wait(300);
+ const desktopTime=await evaluate('obsidianDiagnostics().time');await wait(250);assert.ok(await evaluate('obsidianDiagnostics().time')>desktopTime);
+ await writeFile('screenshots/desktop-web.png',Buffer.from((await send('Page.captureScreenshot')).data,'base64'));
+ assert.equal(errors.length,0,JSON.stringify(errors));console.log(JSON.stringify({status:'PASS',cacheResources:resources,checks:['forward volleys','alternating gates and frontal horde','horizontal-only drag','automatic gate settlement off-lane','final-wave slow boss','background lifecycle','mobile letterbox','DPR cap','menu','combat','pause','silent multi-level gains and batch claims','3 synergies','100 enemies + boss','pool limits','boss dual-lane warning and touch dodge','specialization cards and skill tree','cross-stage upgrades, pending claims and army','reload restores campaign level and XP','score save','offline reload and play','10 HP breach and red edges','double-click offline desktop HTML'],diagnostics:d,errors},null,2));
+}finally{await send('Page.close').catch(()=>{});ws.close();}

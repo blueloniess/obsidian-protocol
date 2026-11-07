@@ -1,0 +1,16 @@
+{
+  "version": "3.2.0",
+  "logic": "PASS",
+  "browser": "PASS",
+  "offlineResources": 19,
+  "stage1": {
+    "peakEnemies": 78,
+    "bossArrivalSeconds": 34.02,
+    "clearSeconds": 48,
+    "squad": 295,
+    "kills": 372
+  },
+  "apk": "v2/v3 signature, alignment, embedded-resource comparison PASS",
+  "nativeShell": "Android 14 emulator checked in 3.1; unchanged in 3.2",
+  "physicalAndroidDevice": "not tested"
+}

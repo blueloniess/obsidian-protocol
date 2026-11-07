@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import {player,initEntities,updateEntities,spawnEnemy,hit} from '../js/entities.js';
+import {Runway,normalizeSquad} from '../js/runway.js';
+import {Particles} from '../js/particles.js';
+import {Mode} from '../js/modes.js';
+import {updateLoot,hitLoot} from '../js/loot.js';
+import {save,fresh,validate} from '../js/save.js';
+assert.equal(normalizeSquad(100n),5n);assert.equal(player().squad,1n);assert.equal(player().rate,.72);
+const g={p:player(),mode:new Mode('campaign'),state:'playing',time:0,fx:new Particles(),runway:new Runway(),input:{move(){}},ui:{toast(){}},persistGrowth(){},finish(){this.state='ended';},levelUp(){},kills:0,score:0,coins:0,loot:[],turrets:[],lootClock:100};initEntities(g);g.p.upgradeHistory=[];g.runway.rows=[];g.runway.drums=[];g.runway.nextRow=100;
+const gem=g.gems.take({x:600,y:1100,px:600,py:1100,value:5,pull:false});updateEntities(g,1/60);assert.equal(gem.pull,false);assert.equal(g.p.xp,0);
+g.p.x=600;gem.x=600;gem.y=g.p.y;updateEntities(g,1/60);assert.equal(g.p.xp,5);
+g.p.x=528;g.runway.addRow(g.p.y);Object.assign(g.runway.rows[0].gates[0],{x:192,kind:'add',value:5n});g.runway.update(g,1/60);assert.equal(g.p.weapon,1);
+g.p.x=g.p.px=192;g.runway.addRow(g.p.y);Object.assign(g.runway.rows[0].gates[0],{x:192,kind:'add',value:5n});g.runway.update(g,1/60);assert.equal(g.p.weapon,6);assert.equal(g.p.squad,1n);
+g.loot=[{id:'rate',x:192,y:g.p.y,hits:2}];const old=g.p.rate;updateLoot(g,0);assert.equal(g.p.rate,old);for(let i=0;i<2;i++)hitLoot(g,{x:192,y:g.p.y,py:g.p.y+2,mass:1n});updateLoot(g,0);assert.ok(g.p.rate<old);
+const e=spawnEnemy(g,4);const hp=e.hp,shield=e.shield;hit(g,e,10,false,true);assert.equal(e.hp,hp);assert.ok(e.shield<shield&&e.shieldFlash>0);
+const legacy=fresh();delete legacy.shop.magnet;assert.equal(validate(legacy).shop.magnet,0);
+console.log('PASS: 1–5 people, pistol, proximity XP, optional weapon gate, shot-locked pickup, shield blocks health, legacy magnet migration');
