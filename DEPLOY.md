@@ -73,7 +73,25 @@
 
 ---
 
-## 三、本地运行 / 自检
+## 三、iPhone / iPad 上免费安装（不用上 App Store）
+
+这个游戏本身就是 PWA（`manifest.json` + Service Worker + 图标），iOS 上不需要 App Store、不需要 Apple 开发者账号（$99/年），用 Safari 的「添加到主屏幕」就能当独立 App 用：
+
+1. 用 **Safari** 打开 <https://obsidianprotocol-10p3x3mb.maozi.io>
+   （如果在微信/QQ 里打开，先点右上角「⋯」→「在 Safari 中打开」；Chrome/Edge 等第三方浏览器在 iOS 上不能安装 PWA。）
+2. 等页面出现主菜单（底部显示 `OFFLINE READY · 全部资源已缓存`）。
+3. 点 Safari 底部的 **分享按钮**（方框+向上箭头）→ 向下滑找到 **「添加到主屏幕」** → 右上角「添加」。
+4. 桌面会出现「黑曜防线」图标，点开就是全屏、无浏览器地址栏的独立应用；**首次加载后资源已缓存在本机，之后断网也能玩**。
+5. 存档保存在这台手机本地（Service Worker / localStorage），卸载或清除 Safari 网站数据会丢档。
+
+免费程度：**完全免费**，不经过 App Store 审核，不需要签名/续签。iOS 16.4+ 还可以把多个 Web App 放进资源库；更老的 iOS 也支持「添加到主屏幕」。
+唯一的成本是站长（你）付的帽子云 Web 应用费用（约 0.32 元/天）；访客玩不花钱。
+
+> 为什么不做 iOS 原生 App：打包 `.ipa` 需要 macOS + Xcode，上架 App Store 或 TestFlight 都要 Apple 开发者账号（$99/年）；用免费 Apple ID 侧载（Sideloadly/AltStore）虽然不要钱，但需要电脑、每 7 天重新签名一次、最多 3 个 App，给女朋友玩很不划算。PWA 是零成本、体验最接近原生 App 的方案。
+
+---
+
+## 四、本地运行 / 自检
 
 ```bash
 # 需要 Node.js 18+
@@ -87,7 +105,7 @@ curl -sI http://127.0.0.1:3000/js/main.js       # text/javascript
 
 ---
 
-## 四、常见问题
+## 五、常见问题
 
 | 现象 | 原因 / 处理 |
 | --- | --- |
