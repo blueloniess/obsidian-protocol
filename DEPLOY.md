@@ -1,5 +1,9 @@
 # 部署到帽子云（maoziyun.com）
 
+> **线上实例**：<https://obsidianprotocol-10p3x3mb.maozi.io>
+> 帽子云应用名 `obsidianprotocol`（类型：Web 应用；构建类型：Buildpack；规格 0.5 核 / 512 MiB；来源 GitHub `blueloniess/obsidian-protocol` 分支 `main`）。
+> 推送 `main` 后平台会自动重新构建部署；下面的步骤用于复现或重建。
+
 本仓库是一份**零依赖、无构建步骤**的静态站点：仓库根目录就是网站根目录，`server.js` 用 Node.js 内置模块起一个静态文件服务。
 
 - 监听地址：`0.0.0.0`（必须，容器内绑 `127.0.0.1` 外部访问不到）
