@@ -1,6 +1,6 @@
 # 黑曜防线 4.3 — 命中计数与动态尸潮
 
-> **Web 部署**：本仓库根目录即网站根目录，`server.js` 是零依赖静态服务（默认监听 `0.0.0.0:3000`），可直接用帽子云等平台的 Buildpack 自动识别（`package.json`）部署。完整步骤见 [DEPLOY.md](./DEPLOY.md)。本地运行：`npm start`。
+> **Web 部署**：本仓库根目录即网站根目录，`server.js` 是零依赖静态服务（同时监听 `0.0.0.0:80` 和 `:3000`，兼容帽子云内部域名与自定义域名端口），可直接用帽子云等平台的 Buildpack 自动识别（`package.json`）部署。完整步骤见 [DEPLOY.md](./DEPLOY.md)。本地运行：`npm start`。
 
 交付：完整源代码、`dist/Obsidian-Protocol-4.3.0-Android.apk`。不再生成网页试玩包。Android8+，需要现代系统WebView；APK资源全部本地，无网络权限。沿用项目签名，可覆盖同签名旧版。请先导出旧存档。
 

@@ -6,9 +6,10 @@
  *   - 零第三方依赖：只用 Node.js 内置模块。Buildpack 即使只做了 `npm install`
  *     甚至完全跳过依赖安装，进程也能直接启动，不会因为网络/依赖失败而构建失败。
  *   - 监听 0.0.0.0：容器内必须绑定 0.0.0.0，绑定 127.0.0.1 时外部无法访问。
- *   - 端口：优先使用平台注入的 PORT；没有注入时默认 3000。
- *     帽子云 Web 应用需要在「域名」绑定里把端口填成同一个值（默认 3000）。
- *   - 路径穿越防护、正确 MIME、HTML 与 sw.js 不缓存、其余静态资源短缓存。
+ *   - 端口：帽子云自动分配的 `<应用名>-xxxx.maozi.io` 内部域名固定转发到容器 80 端口，
+ *     而自定义域名需要在域名绑定里显式填写端口（常见 3000/8080）。为两种方式都能直接访问，
+ *     本服务同时监听 80 和 3000；平台若注入 PORT 也一并监听。单个端口不可用时只跳过该端口。
+ *     日志会打印每个成功监听的地址，部署后在「日志」里核对即可。
  */
 import { createReadStream } from 'node:fs';
 import { stat } from 'node:fs/promises';
@@ -17,8 +18,10 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
-const PORT = Number.parseInt(process.env.PORT ?? '', 10) || 3000;
 const HOST = process.env.HOST || '0.0.0.0';
+const preferredPort = Number.parseInt(process.env.PORT ?? '', 10);
+const CANDIDATE_PORTS = [...new Set([preferredPort, 80, 3000])]
+  .filter((port) => Number.isInteger(port) && port > 0 && port < 65536);
 
 const MIME_TYPES = new Map(Object.entries({
   '.html': 'text/html; charset=utf-8',
@@ -74,7 +77,7 @@ function headersFor(filePath, size) {
   };
 }
 
-const server = http.createServer(async (req, res) => {
+async function handleRequest(req, res) {
   try {
     if (req.method !== 'GET' && req.method !== 'HEAD') {
       sendText(res, 405, 'Method Not Allowed\n', { Allow: 'GET, HEAD' });
@@ -140,22 +143,48 @@ const server = http.createServer(async (req, res) => {
       sendText(res, 500, 'Internal Server Error\n');
     }
   }
-});
+}
 
-server.on('error', (error) => {
-  console.error('[obsidian] server error:', error);
-  process.exit(1);
-});
+const servers = [];
+let listeningCount = 0;
 
-server.listen(PORT, HOST, () => {
-  console.log(`[obsidian] 黑曜防线已启动：http://${HOST}:${PORT} （站点目录 ${ROOT}）`);
-});
+for (const port of CANDIDATE_PORTS) {
+  const server = http.createServer(handleRequest);
+  servers.push(server);
+  server.on('error', (error) => {
+    console.warn(`[obsidian] 端口 ${port} 不可用（${error.code ?? error.message}），已跳过`);
+  });
+  server.on('listening', () => {
+    listeningCount += 1;
+    console.log(`[obsidian] 黑曜防线已启动：http://${HOST}:${port} （站点目录 ${ROOT}）`);
+  });
+  server.listen(port, HOST);
+}
+
+// 所有候选端口都被占用/无权限时退出，避免留下没有监听的僵尸进程。
+setTimeout(() => {
+  if (listeningCount === 0) {
+    console.error('[obsidian] 没有任何端口监听成功，退出');
+    process.exit(1);
+  }
+}, 3000);
 
 // 平台缩容/重启会发送 SIGTERM，先停止接收新请求再退出。
 for (const signal of ['SIGINT', 'SIGTERM']) {
   process.on(signal, () => {
     console.log(`[obsidian] received ${signal}, shutting down`);
-    server.close(() => process.exit(0));
+    let pending = servers.length;
+    if (pending === 0) {
+      process.exit(0);
+    }
+    for (const server of servers) {
+      server.close(() => {
+        pending -= 1;
+        if (pending === 0) {
+          process.exit(0);
+        }
+      });
+    }
     setTimeout(() => process.exit(0), 5000).unref();
   });
 }
