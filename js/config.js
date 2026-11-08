@@ -2,14 +2,13 @@ export const PALETTE = Object.freeze({
   road:'#484c49', rail:'#a8aaa0', roadLine:'#d3c9a1', uniform:'#3e82be', helmet:'#ebc252', skin:'#a1c9ab', bg:'#141d25', panel:'#13182b', grid:'#22304a', player:'#55f5e5', normal:'#62b6a0', fast:'#fa5da9', tank:'#a6b876', bomber:'#ffb454', boss:'#ff4c91',
   bullet:'#ffe59a', crit:'#ffd37b', hp:'#ff617c', ui:'#55f5e5', secondary:'#a5abc5', text:'#eef5ff', white:'#ffffff', black:'#000000', blue:'#5daeff', purple:'#c185ff', gold:'#ffd37b'
 });
-/** 门符号独立随机50/50；加法门无收益上限，每0.18秒有效命中增加1。
- * 门到底必结算，不检查站位；倍数仍按十分位并限制3倍，避免指数失控。
- * 密度随当前编队2秒平滑跟踪：120以下线性，之后每翻倍+100压力。
- * 第3关起HP=1.28*1.52^(stage-2)*(1+.03*(stage-3)^2)，无限每3波视作一关。
- * 防线固定120HP，每只漏怪独立扣10且本局不可修复；免疫/装甲不抵消漏怪。
- * 普通命中与暴击都不冻结模拟，改用低幅震动、白闪和限频飘字。 */
+/** v4.7: 所有阶段使用连续尸潮预算；不再在第5关取消限流。
+ * 新怪血量按当前单发伤害×有效射速的次线性估值设定，生成后固定，升级不会给存活敌人回血。
+ * 普通怪目标是短时间集火可杀，首领独立按持续输出预算计算；不再叠乘人数、时间和指数关卡。
+ * 门逐发命中加1，必须经过才应用；防线120HP，每只漏怪扣10。 */
 export const BALANCE = Object.freeze({
-  director:Object.freeze({rateCap:240,response:3}),
+  encounter:Object.freeze({spawnTop:260,spawnDepth:145,packCap:12,intervalFloor:1.1,latePopulationStep:18,hpRatePower:.88,hpSeconds:.16,hpStageStep:.065,bossDPSSeconds:1.5,gemMergeRadius:64,gemScale:.72,killParticles:5}),
+  director:Object.freeze({rateCap:240,response:3,scatterStage:3,scatterPower:80,lootFirst:5,lootInterval:12,lootJitter:6,lateLootInterval:26,lateLootJitter:10,healFirst:16,healInterval:18,healAmount:20}),
   lootCost:Object.freeze({damage:12,rate:16,range:16,magnet:12,pierce:30,multi:45,blast:55,slow:32,breaker:40,focus:36,close:30,execute:55,recruit:180,turret:70,grenade:50,laser:110}),
   arsenal: Object.freeze({maxSquad:5,recruitEvery:4,permanentMagnet:12,pickupRadius:14,cardTouch:48,cardSpeed:85,cardInterval:9,cardJitter:5,cardHits:5,cardRarityHits:3,maxCards:2,grenadeRadius:155,grenadeRatio:7,grenadeDelay:.65,turretLife:10,turretRate:.22,turretRatio:.65,laserRatio:18,laserWidth:34,maxCharges:3,shieldBoss:.8,shieldElite:.55,shieldHitTime:.26,shieldBreakTime:.7,shieldBreakBonus:1.15,rangeStep:2,gateWeaponMin:0}),
   weapons: Object.freeze([
@@ -21,8 +20,8 @@ export const BALANCE = Object.freeze({
     {name:'脉冲穿甲枪',points:180,damage:50,rate:.12,pellets:2,pierce:2,color:'gold'}
   ]),
   track: Object.freeze({
-    playerY:990, startX:192, upgradeX:192, gateRight:528, hordeX:360, hordeLeft:84, hordeRight:636, startSquad:1, maxMultiplier:3, hostileGateAt:20, hostileGateHighAt:100, hostileGateChance:.8, hostileGateHighChance:.9, gateAddMicros:180000, gateDivideMicros:110000, gateMultiplyMicros:300000, gateMultiplyGrowth:1.35, gateHitWindow:.38, gateChargeSlow:1, visibleTroopers:30, maxTracers:42, hostileReserve:28, columns:5, spacing:32, rowSpacing:28,
-    scroll:245, encounterInterval:8, gateHalfWidth:100, chargeHits:4, multiplierHits:10,
+    playerY:990, startX:192, upgradeX:192, gateRight:528, hordeX:360, hordeLeft:160, hordeRight:560, startSquad:1, maxMultiplier:3, hostileGateAt:20, hostileGateHighAt:100, hostileGateChance:.8, hostileGateHighChance:.9, gateAddMicros:180000, gateDivideMicros:110000, gateMultiplyMicros:300000, gateMultiplyGrowth:1.35, gateHitWindow:.38, gateChargeSlow:1, visibleTroopers:30, maxTracers:42, hostileReserve:28, columns:5, spacing:32, rowSpacing:28,
+    scroll:245, encounterInterval:32, gateHalfWidth:100, chargeHits:4, multiplierHits:10,
     drumHits:4, blastRadius:195, blastDamage:240, openingSize:3, openingStageGrowth:3, openingMax:20,
     strafeFactor:3, forwardSpeed:40, memberDamage:.85, fanMax:.24, fanGrowth:.008
   }),
@@ -41,12 +40,12 @@ export const BALANCE = Object.freeze({
   packMinInterval:.5,packGrowth:.025,fastChance:.27,tankThreshold:.88,bomberChance:.10,
   bossFinalHP:1,bossMajorHP:1.6,bossAdvance:10,bossStartY:300,bossBreachY:1050,
   bossWarning:.85,bossDashDuration:.65,hostileBulletLife:8,
-  width:720,height:1280,dpr:2,step:1/60,maxSteps:6,enemies:120,bullets:400,particles:300,gems:180,corpses:50,numbers:32,
+  width:720,height:1280,dpr:2,step:1/60,maxSteps:6,enemies:120,bullets:400,particles:300,gems:72,corpses:50,numbers:16,
   breachDamage:10,breachWarning:1.1,playerHP:120,playerSpeed:235,damage:10,fireInterval:1,bulletSpeed:760,bulletLife:1.5,crit:.08,critMultiplier:2,invulnerability:.65,
   enemyHP:[24,18,75,32,650],enemySpeed:[34,70,22,42,32],enemyRadius:[20,16,32,23,80],enemyDamage:[10,8,22,24,30],enemyXP:[4,5,12,7,140],
   hpWave:.13,hpTime:.10,speedWave:.012,speedCap:1.85,easyTime:30,easySpeed:.75,
-  wavesPerStage:3,stages:15,waveDuration:16,spawnCount:12,spawnGrowth:24,spawnStagePower:1.35,spawnWaveGrowth:12,spawnLevelGrowth:4,packBase:2,packStageGrowth:3,packWaveGrowth:2,packLevelDivisor:2,packIntervalStage:.35,packIntervalWave:.28,packIntervalLevel:.035,openingDelay:6,hpStageGrowth:1.28,tutorialSlow:.42,bossEvery:10,bossAttack:4,bossShotSpeed:300,bossShots:12,bossShotDamage:16,
-  bossArrival:2,packInterval:3,xpBase:24,xpGrowth:1.28,magnet:42,gemSpeed:510,coinKill:1,bossCoins:60,stageCoins:60,
+  wavesPerStage:3,stages:10,waveDuration:16,spawnCount:12,spawnGrowth:24,spawnStagePower:1.35,spawnWaveGrowth:12,spawnLevelGrowth:4,packBase:2,packStageGrowth:3,packWaveGrowth:2,packLevelDivisor:2,packIntervalStage:.35,packIntervalWave:.28,packIntervalLevel:.035,openingDelay:6,hpStageGrowth:1.28,tutorialSlow:.42,bossEvery:10,bossAttack:4,bossShotSpeed:300,bossShots:12,bossShotDamage:16,
+  bossArrival:2,packInterval:3,xpBase:24,xpGrowth:1.28,magnet:42,gemSpeed:510,coinKill:1,coinPickupEvery:3,coinPickupBoss:12,bossCoins:60,stageCoins:60,
   knockback:4,corpseTime:.85,critFreeze:0,shakeDecay:8,hitShake:9,critShake:4,spread:.12,
   damageUpgrade:1.18,rateUpgrade:.90,speedUpgrade:1.10,hpUpgrade:25,critUpgrade:.06,magnetUpgrade:18,regenUpgrade:.6,armorUpgrade:.07,luckUpgrade:.08,
   leech:.8,thorns:12,explosionRadius:85,explosionRatio:.4,chainRange:145,chainRatio:.45,freezeTime:1.5,freezeSlow:.45,burnTime:3,burnDPS:5,auraRadius:95,auraDPS:8,

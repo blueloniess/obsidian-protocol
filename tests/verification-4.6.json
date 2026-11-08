@@ -1,0 +1,7 @@
+{
+  "version": "4.6.0",
+  "logic": "revision44,45,46 PASS",
+  "visual": "412x915 HUD screenshot checked with service worker bypass",
+  "androidPhysical": "not tested",
+  "sha256": "5e0cd5647491b807b97e3cbfbcfa984345ff2b7fe503389f3bd184bec341dc74"
+}

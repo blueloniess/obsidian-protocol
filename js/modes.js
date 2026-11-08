@@ -9,12 +9,17 @@ export function difficulty(mode, level = 1, squad = B.track.startSquad) {
   const local = mode.kind === 'campaign' ? mode.local : 1 + (mode.wave - 1) % B.wavesPerStage;
   const power = Math.max(0, level - 1);
   const extra=Math.max(0,(typeof squad==='bigint'?armyPressure(squad):Number(squad))-B.adaptive.baseSquad);
-  return {
+  const result={
     population: Math.round(B.spawnCount + B.spawnGrowth * (stage - 1) ** B.spawnStagePower + B.spawnWaveGrowth * (local - 1) + B.spawnLevelGrowth * power + B.adaptive.budgetPerMember*extra),
-    pack: Math.min(B.enemies, B.packBase + B.packStageGrowth * (stage - 1) + B.packWaveGrowth * (local - 1) + Math.floor(power / B.packLevelDivisor)+Math.floor(extra*B.adaptive.packPerMember)+(mode.aoe?8:0)),
+    pack: Math.min(B.enemies, B.packBase + B.packStageGrowth * (stage - 1) + B.packWaveGrowth * (local - 1) + Math.floor(power / B.packLevelDivisor)+Math.floor(extra*B.adaptive.packPerMember)+(mode.aoe?4:0)),
     interval: Math.max(B.packMinInterval, B.packInterval / (1 + B.packIntervalStage * (stage - 1) + B.packIntervalWave * (local - 1) + B.packIntervalLevel * power + extra*B.adaptive.intervalPerMember)),
     stage, local
   };
+  // 前四关的预算连续延伸；火力只小幅增加预算，不产生第五关的六倍突增。
+  result.population=Math.min(result.population,12+local*6+(stage-1)*B.encounter.latePopulationStep);
+  result.pack=Math.min(result.pack,stage+2,B.encounter.packCap);
+  result.interval=Math.max(result.interval,stage<=4?[0,2.8,2.2,1.8,1.5][stage]:B.encounter.intervalFloor);
+  return result;
 }
 export class Mode {
   constructor(kind, stage = 1) {
@@ -48,17 +53,19 @@ export class Mode {
 
   spawnPack(game) {
     // 批次随等级和路段递增；第一波只出现普通小怪。
-    const profile=combatProfile(game.p),columns=profile.columns;const center=Math.max(160,Math.min(560,game.p.x));
+    const profile=combatProfile(game.p),columns=profile.columns;const center=[240,480,360][this.packet%3];
     const limit = Math.min(this.remaining, B.enemies - game.enemies.count, difficulty(this, game.p?.level,this.pressureSquad).pack);
-    const shift = (this.packet++ % 2) * 8;
+    const stage=this.kind==='campaign'?this.stage:1+Math.floor((this.wave-1)/B.wavesPerStage);
+    const scattered=stage>=B.director.scatterStage||profile.power>=B.director.scatterPower;
+    this.packet++;
     for (let i = 0; i < limit; i++) {
       const roll = Math.random();
       const type = this.wave === 1 ? 0 : this.wave > 2 && roll > B.tankThreshold - Math.min(.35,Math.max(0,this.pressureSquad-2)*B.adaptive.elitePerMember) ? 2 :
         this.wave > 1 && roll < B.bomberChance ? 3 : roll < B.fastChance ? 1 : 0;
       const enemy = game.spawnEnemy(type);
       if (!enemy) break;
-      enemy.x = enemy.px = center + (i%columns-(columns-1)/2)*38;
-      enemy.y = enemy.py = 155 - Math.floor(i / columns) * 28 + Math.random() * 18;
+      enemy.x = enemy.px = scattered?B.track.hordeLeft+Math.random()*(B.track.hordeRight-B.track.hordeLeft):Math.max(B.track.hordeLeft,Math.min(B.track.hordeRight,center + (i%columns-(columns-1)/2)*38));
+      enemy.y = enemy.py = stage<=4?(scattered?90-Math.random()*240:155-Math.floor(i/columns)*28+Math.random()*18):(scattered?B.encounter.spawnTop+Math.random()*B.encounter.spawnDepth:B.encounter.spawnTop+Math.floor(i/columns)*28+Math.random()*18);
       this.remaining--;
     }
   }

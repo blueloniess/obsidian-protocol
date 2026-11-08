@@ -1,3 +1,3 @@
-export const shopCost=level=>Math.ceil(80*(level+1)**3*1.07**level);
+export const shopCost=level=>Math.ceil(80*(level+1)**3*1.07**level*(level===0?.75:level===1?.85:level===2?.92:1));
 export function permanent(id,level){const growth=level+.06*level*level;return ({rate:.04,damage:.08,magnet:15,speed:.025,hp:.015,rerolls:1}[id]||0)*growth;}
 export function shopBenefit(id,level){if(id==='luck')return `高级补给 ${Math.min(100,18+level)}%（每级+1个百分点，概率最高100%）`;if(id==='hp')return `接触减伤 ${(100*(1-1/(1+permanent(id,level)))).toFixed(1)}%`;if(id==='magnet')return `拾取范围 +${permanent(id,level).toFixed(0)}`;if(id==='rerolls')return `初始备用 +${Math.floor(permanent(id,level))}`;return `${id==='damage'?'伤害':id==='rate'?'射速':'移速'} +${(permanent(id,level)*100).toFixed(1)}%`;}

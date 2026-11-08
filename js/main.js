@@ -25,3 +25,5 @@ const status=document.querySelector('#offline');
 if(location.hostname==='appassets.androidplatform.net'||window.Capacitor?.isNativePlatform?.()){status.textContent='APK · 本地资源已就绪';}
 else if('serviceWorker'in navigator&&window.isSecureContext){navigator.serviceWorker.register('./sw.js').then(async()=>{await navigator.serviceWorker.ready;status.textContent='OFFLINE READY · 全部资源已缓存';}).catch(()=>{status.textContent='离线缓存失败 · 请通过 localhost 或 HTTPS 重试';});}
 else status.textContent='请通过 localhost / HTTPS 启动，以启用离线缓存';
+
+window.addEventListener('pagehide',()=>game.checkpointEndless());

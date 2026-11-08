@@ -35,3 +35,14 @@ h1{font-size:76px;letter-spacing:9px}.eyebrow{color:var(--gold);font-size:15px}.
 .item-icon{width:68px;height:68px;float:left;margin:0 16px 8px 0}.shop-item{background:linear-gradient(120deg,var(--panel),var(--bg));border-radius:15px;border-left:3px solid var(--gold);padding:18px}.shop-item small{line-height:1.8}.inventory button{background:linear-gradient(135deg,var(--grid),var(--panel))}
 
 .inventory .item-icon{width:44px;height:44px;float:none;display:block;margin:0 auto 5px}.inventory button{padding:8px}.inventory span{font-size:18px}
+
+/* 4.6: edge-only combat HUD. Keep the center lane free of persistent panels. */
+#hud.covered{visibility:hidden}
+.hud-top{top:10px;left:16px;right:calc(32px + var(--touch-min,88px));height:116px;padding:10px 14px;align-items:flex-start;border-radius:12px}
+.hud-top .hud-label{font-size:17px;letter-spacing:0;white-space:nowrap}.hud-top .hud-value{font-size:25px;margin-top:5px}.hud-top .health{margin-top:8px;height:7px}.hud-right .small{font-size:17px;line-height:1.4;white-space:nowrap}
+.weapon-readout{top:93px;left:32px;right:calc(46px + var(--touch-min,88px));padding:0;height:24px;background:none;text-align:left;font:18px system-ui;letter-spacing:.5px;overflow:hidden;white-space:nowrap}
+.pause{top:10px;right:16px;padding:10px;border-radius:12px}
+.boss-hud{top:135px;left:100px;right:100px;font-size:16px;padding:5px 10px;background:var(--panel);border-radius:8px}.boss-hud .health{height:5px;margin-top:5px}
+.inventory{bottom:34px;left:100px;right:100px;gap:14px}.inventory button{min-height:max(72px,var(--touch-min,72px));padding:6px;border-width:1px;border-radius:12px;display:flex;align-items:center;justify-content:center;gap:8px}.inventory .item-icon{width:34px;height:34px;margin:0;display:inline-block}.inventory span{font-size:18px;white-space:nowrap}
+.hud-foot{bottom:5px;left:25px;right:25px;padding:4px 8px;border:0;border-radius:0;background:none;font:15px system-ui;white-space:nowrap}
+#toast{bottom:auto;top:192px;left:45px;right:45px;padding:8px 12px;font-size:17px;line-height:1.4;max-height:66px;overflow:hidden;border-left-width:3px;opacity:0}#toast.show{opacity:.95}

@@ -70,15 +70,15 @@ export class Runway {
 
   /** 尸潮全部从道路前方推进；两侧轮换数字门和油桶，横移分配火力。 */
   openingConvoy(game) {
-    const count = Math.min(game.mode.remaining, track.openingMax, track.openingSize + (game.mode.stage - 1) * track.openingStageGrowth);
+    const count = Math.min(game.mode.remaining, game.mode.stage<=4?track.openingMax:6, track.openingSize + (game.mode.stage - 1) * track.openingStageGrowth);
     for (let i = 0; i < count; i++) {
       const enemy = game.spawnEnemy(0);
       if (!enemy) break;
       game.mode.remaining--;
       // 所有刷怪入口集中在前方，不从玩家两翼包夹。
       const vanguard = i < 10;
-      enemy.x = enemy.px = game.p.x;
-      enemy.y = enemy.py = vanguard ? 390 - i * 45 : 300 - Math.floor((i - 10) / 10) * 52;
+      enemy.x = enemy.px = [200,360,520][i%3];
+      enemy.y = enemy.py = game.mode.stage<=4?(vanguard ? 390 - i * 95 : 300 - Math.floor((i - 10) / 10) * 52):B.encounter.spawnTop+(i%5)*28;
     }
   }
 

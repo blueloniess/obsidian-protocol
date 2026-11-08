@@ -1,0 +1,11 @@
+{
+  "version": "4.5.0",
+  "suites": [
+    "revision44 PASS",
+    "revision45 PASS"
+  ],
+  "campaign": "seeded active strategy clears 1\u20134; stationary cannot clear stage1",
+  "browser": "startup PASS",
+  "physicalAndroid": "not tested",
+  "sha256": "f23b218933f1408a75868dacea7831e59bfd6b6b77d4728f0e1743d7e3de1136"
+}

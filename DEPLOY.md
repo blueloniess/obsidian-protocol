@@ -105,7 +105,29 @@ curl -sI http://127.0.0.1:3000/js/main.js       # text/javascript
 
 ---
 
-## 五、常见问题
+## 五、把游戏更新到新版本（本仓库的同步方式）
+
+游戏每次发版都会给一个 `Obsidian-Protocol-x.y.z-Source.zip`。本仓库 = 官方源码 + Web 部署补丁，升级时用脚本同步，**不要用新 zip 直接覆盖仓库根目录**（会冲掉 `server.js`、打包脚本和 iOS 补丁）。
+
+```bash
+node tools/sync-upstream.mjs "D:\DSH\obsidian-protocol\dist\Obsidian-Protocol-4.8.0-Source.zip"
+npm install --package-lock-only   # 更新 package-lock.json 里的版本号
+npm test                          # 跑官方测试
+git add -A && git commit -m "同步 4.8.0 源码" && git push
+```
+
+脚本做的事（可重复运行，补丁幂等）：
+
+- 覆盖官方文件（`js/`、`css/`、`icons/`、`tests/`、`README.md`、`FULL_SOURCE.md` 等），删除官方包已移除的旧文件；
+- **保留部署文件**：`server.js`、`Procfile`、`Dockerfile`、`DEPLOY.md`、`package-lock.json`、`.gitignore`、`icons/apple-touch-icon.png`；
+- 合并 `package.json`（版本号取官方，补 `start`/`dev`/`sync:upstream` 脚本与 `engines`）；
+- 重新打补丁：`index.html` 的 iOS meta + apple-touch-icon、`sw.js` 预缓存苹果图标、README 顶部 Web 部署说明。
+
+推送后帽子云会自动构建部署；线上 `sw.js` 的缓存版本号（官方包里是 `obsidian-protocol-android-v4-7` 这种）会随版本变化，老玩家打开时 Service Worker 会自动换新缓存。
+
+---
+
+## 六、常见问题
 
 | 现象 | 原因 / 处理 |
 | --- | --- |

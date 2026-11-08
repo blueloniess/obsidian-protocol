@@ -1,4 +1,4 @@
-# 4.3完整源代码
+# 4.7完整源代码
 
 ## index.html
 ```
@@ -21,7 +21,7 @@
 
 ## sw.js
 ```
-const CACHE='obsidian-protocol-android-v4-3';
+const CACHE='obsidian-protocol-android-v4-7';
 const RESOURCES=['./','./index.html','./manifest.json','./css/style.css','./icons/icon-192.png','./icons/icon-512.png','./js/config.js','./js/challenge.js','./js/utils.js','./js/assets.js','./js/save.js','./js/progression.js','./js/audio.js','./js/particles.js','./js/runway.js','./js/entities.js','./js/upgrades.js','./js/modes.js','./js/ui.js','./js/game.js','./js/icons.js','./js/shop.js','./js/combat.js','./js/loot.js','./js/main.js'];
 // 原子预缓存：任意资源失败则安装失败，不宣称离线就绪。更新版本号使新缓存完整替代旧版。
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(c=>c.addAll(RESOURCES.map(path => new Request(new URL(path, self.registration.scope), {cache:'reload'}))))));
@@ -32,7 +32,17 @@ self.addEventListener('fetch',event=>{if(event.request.method!=='GET')return;con
 
 ## package.json
 ```
-{"name": "obsidian-protocol", "version": "4.3.0", "private": true, "type": "module", "scripts": {"prepare:apk": "node tools/prepare-apk.mjs", "test": "node tests/revision43.mjs"}}
+{
+  "name": "obsidian-protocol",
+  "version": "4.7.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "prepare:apk": "node tools/prepare-apk.mjs",
+    "test": "node tests/revision44.mjs && node tests/revision45.mjs && node tests/revision46.mjs && node tests/revision47.mjs && node tests/benchmark47.mjs"
+  }
+}
+
 ```
 
 ## capacitor.config.json
@@ -49,59 +59,7 @@ self.addEventListener('fetch',event=>{if(event.request.method!=='GET')return;con
 }
 ```
 
-## README.md
-```
-# 黑曜防线 4.3 — 命中计数与动态尸潮
-
-交付：完整源代码、`dist/Obsidian-Protocol-4.3.0-Android.apk`。不再生成网页试玩包。Android8+，需要现代系统WebView；APK资源全部本地，无网络权限。沿用项目签名，可覆盖同签名旧版。请先导出旧存档。
-
-## 武器与门
-
-新基础角色开局每秒1发、单发10伤害，商店永久强化另计。射速、伤害独立：射速门只修改射速，伤害门只修改单发伤害。所有门只有加减，必须整队通过门洞才生效，可绕开负门。
-
-每实际命中一发，门数值增加1；不再按持续命中时间充能。−3射速门命中6发变+3，开局通过后得到4发/秒、10伤害。−2门命中2发归零，之后每发+1。合并弹束按mass代表的全部实际弹数计数，不能只算一发；同一弹束穿过同一个门只计一次。门不会因射击而变慢。
-
-门初始数值幅度约为当前编队每秒弹量×0.65（最低2），生成时确定，不在射击中变动。正负随机。射速每人最高240发/秒，达到后只刷伤害门；达到上限后的射速补给也改为伤害。伤害无游戏设计上限，受JS有限数值精度约束。高射速合并弹数而非无限绘制弹丸，固定模拟步长内仍保持真实总弹量。
-
-HUD显示单发伤害、每秒发数；门显示自己的属性类型。通过门提示两项属性的前后变化。旧武器等级存档迁移为对应射速/伤害加成，新存档分别保存gateRate和gateDamage。
-
-## 道具
-
-基础手雷需要50次命中；动态耐久=max(基础耐久,当前编队每秒弹量×目标投入秒数)。手雷4秒、激光8秒、炮台6秒、增援12秒、普通强化2秒。例：单人50发/秒时手雷200次命中。显示负数剩余值，打到0后必须接取。耐久生成时锁定，不追涨。
-
-弹束解锁道具后还有剩余弹数，会继续向前；不白白丢掉溢出弹数。战术物品接取后进入物品栏，点击按钮才释放。持续打补给可暂时减缓补给下落，最多25秒；武器门没有此减速。增援仍独立约0.3%刷新，无人数上限；180为增援最低耐久，后期按弹量增加。
-
-## 动态尸潮
-
-combatProfile由实际单发伤害、射速、弹丸数和人数计算。直线火力以单列纵队推进；爆炸/电链/光环或三发以上散射使用五列密集群，增加同批数量。阵形在生成时固定，不追踪玩家横移。开局三只也按纵队进入射界。
-
-火力变强，波次预算、生成批量和频率上升；新敌人血量额外按火力增长。HP系数=max(power^0.28,单发伤害/10×(0.8+0.06×log2(power)))，群攻系数再×1.15，power为相对开局的总DPS。叠加已有关卡血量、护甲和首领机制。血量系数3秒平滑追踪；不修改场上敌人当前血量，也不回血。
-
-120敌人、400弹丸、300粒子硬预算保持，满池后剩余敌人继续排队进入，不以无限加实体换难度。固定60Hz逻辑、rAF插值、DPR≤2，后台暂停。命中不顿帧。
-
-## 其他系统
-
-经验仅接近拾取，不结算地面经验；永久拾取范围在基地商店。永久商店无游戏等级上限，收益level+0.06×level²，价格ceil(80×(level+1)^3×1.07^level)。幸运每级仅+1个百分点高级物品概率，最高100%，不影响独立增援概率。超出安全数值范围时禁止购买以保护存档。
-
-本地绘制图标用于枪械门、补给、物品栏、商店。启动烘焙Canvas徽章，运行时drawImage。护盾有命中光圈，先破盾后伤本体。每只漏怪扣10/120生命，不受接触无敌帧抵消。
-
-## 验证与运行
-
-`npm test`运行4.3专项测试。历史版本测试保留作参考，不适用于新规则。
-
-验证包含：−3射速门六发→+3→4发/秒且伤害不变；伤害门不改射速；不命中不增长；240上限只刷伤害；50发/秒手雷200耐久；溢出弹数保留；直线/群攻阵形；1/50/240发每秒10秒弹量守恒；低中高火力40秒模拟。同屏实体始终≤120。
-
-矩阵测试（自动瞄准前沿、无预警躲避的测试输入）：开局基础武器40秒仍存活但存在漏怪；第3阶段50×50直线在约24秒失败；同阶段群攻40秒清472只并保持存活；第7阶段240×1000群攻40秒清1107只但受到机制伤害。测试仅用于比较压力，不代表整关通关率，真实体验仍需手机试玩校准。
-
-浏览器启动运行与APK v2/v3签名、zipalign、内置资源一致性检查通过。未实测实体安卓机帧率。
-
-构建：JDK17、Android SDK35/build-tools35，配置JAVA_HOME/ANDROID_HOME后执行`python tools/build_android.py`。签名私钥不随源码提供，新机器创建的新签名不能覆盖本次APK。`tools/prepare-apk.mjs`仅复制资源，无需前端构建框架。
-
-主要改动位置：js/combat.js（武器/火力公式）、runway.js（命中门）、loot.js（动态耐久/物品栏）、modes.js（阵形/密度）、entities.js（发射与合并弹数）、progression.js（迁移）、config.js（射速上限）。
-
-```
-
-## js\armory.js
+## js/armory.js
 ```
 import {BALANCE as B} from './config.js';
 export function weapon(p){let result=B.weapons[0];for(const w of B.weapons)if(p.weaponPoints>=w.points)result=w;return result;}
@@ -113,7 +71,7 @@ export function nextWeapon(p){return B.weapons.find(w=>w.points>p.weaponPoints);
 
 ```
 
-## js\assets.js
+## js/assets.js
 ```
 import {PALETTE as P} from './config.js';
 import {canvas} from './utils.js';
@@ -178,11 +136,11 @@ export function initAssets(){
   const warning=canvas(720,1280),wc=warning.getContext('2d');for(const flip of [false,true]){wc.save();if(flip){wc.translate(720,0);wc.scale(-1,1);}const edge=wc.createLinearGradient(0,0,160,0);edge.addColorStop(0,P.hp);edge.addColorStop(1,'transparent');wc.fillStyle=edge;wc.fillRect(0,0,160,1280);wc.restore();}assets.warning=warning;
   const panel=canvas(64,64),pc=panel.getContext('2d');pc.fillStyle=P.panel;pc.fillRect(0,0,64,64);pc.globalAlpha=.12;pc.drawImage(bg,0,0,64,64);assets.panel=panel;
 }
-export function sprite(c,key,x,y,angle=0,scale=1,flash=0,glow=true){c.save();c.translate(x,y);c.rotate(angle+Math.PI/2);if(!['bullet','gem','particle','hostile'].includes(key)){c.fillStyle=P.black;c.globalAlpha*=.25;c.beginPath();c.ellipse(4,15,22*scale,10*scale,0,0,7);c.fill();c.globalAlpha/=.25;}if(glow){c.globalCompositeOperation='lighter';c.globalAlpha*=.2;c.drawImage(assets.glows[key],-64*scale,-64*scale,128*scale,128*scale);c.globalAlpha/=.2;c.globalCompositeOperation='source-over';}c.drawImage(assets.sprites[key],-64*scale,-64*scale,128*scale,128*scale);if(flash>0){c.globalCompositeOperation='lighter';c.globalAlpha*=Math.min(1,flash*9);c.drawImage(assets.white[key],-64*scale,-64*scale,128*scale,128*scale);}c.restore();}
+export function sprite(c,key,x,y,angle=0,scale=1,flash=0,glow=true){c.save();c.translate(x,y);c.rotate(angle+Math.PI/2);if(!['bullet','gem','particle','hostile'].includes(key)){c.fillStyle=P.black;c.globalAlpha*=.25;c.beginPath();c.ellipse(4,15,22*scale,10*scale,0,0,7);c.fill();c.globalAlpha/=.25;}if(glow){c.globalCompositeOperation='lighter';c.globalAlpha*=.2;c.drawImage(assets.glows[key],-64*scale,-64*scale,128*scale,128*scale);c.globalAlpha/=.2;c.globalCompositeOperation='source-over';}c.drawImage(assets.sprites[key],-64*scale,-64*scale,128*scale,128*scale);if(flash>0){c.globalCompositeOperation='lighter';c.globalAlpha*=Math.min(.32,flash*4);c.drawImage(assets.white[key],-64*scale,-64*scale,128*scale,128*scale);}c.restore();}
 
 ```
 
-## js\audio.js
+## js/audio.js
 ```
 import {save} from './save.js';
 export const audio={ctx:null,last:0,unlock(){try{this.ctx??=new(window.AudioContext||window.webkitAudioContext)();this.ctx.resume().catch(()=>{});}catch{}},play(type){
@@ -193,7 +151,7 @@ export const audio={ctx:null,last:0,unlock(){try{this.ctx??=new(window.AudioCont
 
 ```
 
-## js\challenge.js
+## js/challenge.js
 ```
 import {BALANCE as B,PALETTE as P} from './config.js';
 const C=B.challenge;
@@ -267,31 +225,42 @@ export function stageBrief(stage){
 
 ```
 
-## js\combat.js
+## js/combat.js
 ```
 import {BALANCE as B} from './config.js';
 export function weaponStats(p){return {damage:Math.max(1,p.damage+(p.gateDamage||0)),rate:Math.min(B.director.rateCap,Math.max(1,1/p.rate+(p.gateRate||0)))};}
 export function bulletFlow(p){return weaponStats(p).rate*Math.max(1,Math.min(1e12,Number(p.squad)))*Math.min(B.maxShots,p.shots||1);}
-export function combatProfile(p){const stats=weaponStats(p),aoe=Boolean(p.explosive||p.chain||p.aura||p.shots>=3),dps=stats.damage*bulletFlow(p),power=Math.max(1,dps/10);return {aoe,dps,power,pressure:2+Math.log2(power)*12,hp:Math.max(power**.28,stats.damage/10*(.8+.06*Math.log2(power)))*(aoe?1.15:1),columns:aoe?5:1};}
+export function combatProfile(p){const stats=weaponStats(p),aoe=Boolean(p.explosive||p.chain||p.aura||p.shots>=3),dps=stats.damage*bulletFlow(p),power=Math.max(1,dps/10);return {aoe,dps,power,pressure:2+Math.log2(power)*12,hp:Math.max(power**.28,stats.damage/10*(.8+.06*Math.log2(power)))*(aoe?1.12:1)*Math.max(1,(stats.rate/12)**.12),columns:aoe?5:1};}
 export function gateNeed(p){return Math.max(2,Math.round(bulletFlow(p)*.65));}
 export function applyGate(p,gate){const before=weaponStats(p),n=Number(gate.value);if(gate.stat==='rate')p.gateRate=Math.max(1-1/p.rate,Math.min(B.director.rateCap-1/p.rate,(p.gateRate||0)+n));else p.gateDamage=Math.max(1-p.damage,(p.gateDamage||0)+n);return {before,after:weaponStats(p)};}
 
+/** 新生敌人只采样一次火力。按一条交火线实际分到的火力估算，避免总DPS直接堆到每一只怪上。
+ * 射速取次线性幂，成长仍有收益；关卡线性增加耐久，无第5关断层，也不随战斗时长无限膨胀。
+ * 首领另计三层血与护盾，避免对普通怪算法再次乘650/24造成巨额血墙。
+ */
+export function encounterHP(p,type,stage){
+ const s=weaponStats(p),profile=combatProfile(p),lanes=profile.aoe?3:1;
+ const flow=Math.max(1,bulletFlow(p)/lanes);
+ const hits=2+B.encounter.hpSeconds*Math.max(0,flow-3)**B.encounter.hpRatePower;
+ const growth=1+B.encounter.hpStageStep*Math.max(0,stage-1);
+ return type===4?Math.max(36,profile.dps*B.encounter.bossDPSSeconds*growth):s.damage*hits*(B.enemyHP[type]/B.enemyHP[0])*growth;
+}
+
 ```
 
-## js\config.js
+## js/config.js
 ```
 export const PALETTE = Object.freeze({
   road:'#484c49', rail:'#a8aaa0', roadLine:'#d3c9a1', uniform:'#3e82be', helmet:'#ebc252', skin:'#a1c9ab', bg:'#141d25', panel:'#13182b', grid:'#22304a', player:'#55f5e5', normal:'#62b6a0', fast:'#fa5da9', tank:'#a6b876', bomber:'#ffb454', boss:'#ff4c91',
   bullet:'#ffe59a', crit:'#ffd37b', hp:'#ff617c', ui:'#55f5e5', secondary:'#a5abc5', text:'#eef5ff', white:'#ffffff', black:'#000000', blue:'#5daeff', purple:'#c185ff', gold:'#ffd37b'
 });
-/** 门符号独立随机50/50；加法门无收益上限，每0.18秒有效命中增加1。
- * 门到底必结算，不检查站位；倍数仍按十分位并限制3倍，避免指数失控。
- * 密度随当前编队2秒平滑跟踪：120以下线性，之后每翻倍+100压力。
- * 第3关起HP=1.28*1.52^(stage-2)*(1+.03*(stage-3)^2)，无限每3波视作一关。
- * 防线固定120HP，每只漏怪独立扣10且本局不可修复；免疫/装甲不抵消漏怪。
- * 普通命中与暴击都不冻结模拟，改用低幅震动、白闪和限频飘字。 */
+/** v4.7: 所有阶段使用连续尸潮预算；不再在第5关取消限流。
+ * 新怪血量按当前单发伤害×有效射速的次线性估值设定，生成后固定，升级不会给存活敌人回血。
+ * 普通怪目标是短时间集火可杀，首领独立按持续输出预算计算；不再叠乘人数、时间和指数关卡。
+ * 门逐发命中加1，必须经过才应用；防线120HP，每只漏怪扣10。 */
 export const BALANCE = Object.freeze({
-  director:Object.freeze({rateCap:240,response:3}),
+  encounter:Object.freeze({spawnTop:260,spawnDepth:145,packCap:12,intervalFloor:1.1,latePopulationStep:18,hpRatePower:.88,hpSeconds:.16,hpStageStep:.065,bossDPSSeconds:1.5,gemMergeRadius:64,gemScale:.72,killParticles:5}),
+  director:Object.freeze({rateCap:240,response:3,scatterStage:3,scatterPower:80,lootFirst:5,lootInterval:12,lootJitter:6,lateLootInterval:26,lateLootJitter:10,healFirst:16,healInterval:18,healAmount:20}),
   lootCost:Object.freeze({damage:12,rate:16,range:16,magnet:12,pierce:30,multi:45,blast:55,slow:32,breaker:40,focus:36,close:30,execute:55,recruit:180,turret:70,grenade:50,laser:110}),
   arsenal: Object.freeze({maxSquad:5,recruitEvery:4,permanentMagnet:12,pickupRadius:14,cardTouch:48,cardSpeed:85,cardInterval:9,cardJitter:5,cardHits:5,cardRarityHits:3,maxCards:2,grenadeRadius:155,grenadeRatio:7,grenadeDelay:.65,turretLife:10,turretRate:.22,turretRatio:.65,laserRatio:18,laserWidth:34,maxCharges:3,shieldBoss:.8,shieldElite:.55,shieldHitTime:.26,shieldBreakTime:.7,shieldBreakBonus:1.15,rangeStep:2,gateWeaponMin:0}),
   weapons: Object.freeze([
@@ -303,8 +272,8 @@ export const BALANCE = Object.freeze({
     {name:'脉冲穿甲枪',points:180,damage:50,rate:.12,pellets:2,pierce:2,color:'gold'}
   ]),
   track: Object.freeze({
-    playerY:990, startX:192, upgradeX:192, gateRight:528, hordeX:360, hordeLeft:84, hordeRight:636, startSquad:1, maxMultiplier:3, hostileGateAt:20, hostileGateHighAt:100, hostileGateChance:.8, hostileGateHighChance:.9, gateAddMicros:180000, gateDivideMicros:110000, gateMultiplyMicros:300000, gateMultiplyGrowth:1.35, gateHitWindow:.38, gateChargeSlow:1, visibleTroopers:30, maxTracers:42, hostileReserve:28, columns:5, spacing:32, rowSpacing:28,
-    scroll:245, encounterInterval:8, gateHalfWidth:100, chargeHits:4, multiplierHits:10,
+    playerY:990, startX:192, upgradeX:192, gateRight:528, hordeX:360, hordeLeft:160, hordeRight:560, startSquad:1, maxMultiplier:3, hostileGateAt:20, hostileGateHighAt:100, hostileGateChance:.8, hostileGateHighChance:.9, gateAddMicros:180000, gateDivideMicros:110000, gateMultiplyMicros:300000, gateMultiplyGrowth:1.35, gateHitWindow:.38, gateChargeSlow:1, visibleTroopers:30, maxTracers:42, hostileReserve:28, columns:5, spacing:32, rowSpacing:28,
+    scroll:245, encounterInterval:32, gateHalfWidth:100, chargeHits:4, multiplierHits:10,
     drumHits:4, blastRadius:195, blastDamage:240, openingSize:3, openingStageGrowth:3, openingMax:20,
     strafeFactor:3, forwardSpeed:40, memberDamage:.85, fanMax:.24, fanGrowth:.008
   }),
@@ -323,12 +292,12 @@ export const BALANCE = Object.freeze({
   packMinInterval:.5,packGrowth:.025,fastChance:.27,tankThreshold:.88,bomberChance:.10,
   bossFinalHP:1,bossMajorHP:1.6,bossAdvance:10,bossStartY:300,bossBreachY:1050,
   bossWarning:.85,bossDashDuration:.65,hostileBulletLife:8,
-  width:720,height:1280,dpr:2,step:1/60,maxSteps:6,enemies:120,bullets:400,particles:300,gems:180,corpses:50,numbers:32,
+  width:720,height:1280,dpr:2,step:1/60,maxSteps:6,enemies:120,bullets:400,particles:300,gems:72,corpses:50,numbers:16,
   breachDamage:10,breachWarning:1.1,playerHP:120,playerSpeed:235,damage:10,fireInterval:1,bulletSpeed:760,bulletLife:1.5,crit:.08,critMultiplier:2,invulnerability:.65,
   enemyHP:[24,18,75,32,650],enemySpeed:[34,70,22,42,32],enemyRadius:[20,16,32,23,80],enemyDamage:[10,8,22,24,30],enemyXP:[4,5,12,7,140],
   hpWave:.13,hpTime:.10,speedWave:.012,speedCap:1.85,easyTime:30,easySpeed:.75,
-  wavesPerStage:3,stages:15,waveDuration:16,spawnCount:12,spawnGrowth:24,spawnStagePower:1.35,spawnWaveGrowth:12,spawnLevelGrowth:4,packBase:2,packStageGrowth:3,packWaveGrowth:2,packLevelDivisor:2,packIntervalStage:.35,packIntervalWave:.28,packIntervalLevel:.035,openingDelay:6,hpStageGrowth:1.28,tutorialSlow:.42,bossEvery:10,bossAttack:4,bossShotSpeed:300,bossShots:12,bossShotDamage:16,
-  bossArrival:2,packInterval:3,xpBase:24,xpGrowth:1.28,magnet:42,gemSpeed:510,coinKill:1,bossCoins:60,stageCoins:60,
+  wavesPerStage:3,stages:10,waveDuration:16,spawnCount:12,spawnGrowth:24,spawnStagePower:1.35,spawnWaveGrowth:12,spawnLevelGrowth:4,packBase:2,packStageGrowth:3,packWaveGrowth:2,packLevelDivisor:2,packIntervalStage:.35,packIntervalWave:.28,packIntervalLevel:.035,openingDelay:6,hpStageGrowth:1.28,tutorialSlow:.42,bossEvery:10,bossAttack:4,bossShotSpeed:300,bossShots:12,bossShotDamage:16,
+  bossArrival:2,packInterval:3,xpBase:24,xpGrowth:1.28,magnet:42,gemSpeed:510,coinKill:1,coinPickupEvery:3,coinPickupBoss:12,bossCoins:60,stageCoins:60,
   knockback:4,corpseTime:.85,critFreeze:0,shakeDecay:8,hitShake:9,critShake:4,spread:.12,
   damageUpgrade:1.18,rateUpgrade:.90,speedUpgrade:1.10,hpUpgrade:25,critUpgrade:.06,magnetUpgrade:18,regenUpgrade:.6,armorUpgrade:.07,luckUpgrade:.08,
   leech:.8,thorns:12,explosionRadius:85,explosionRatio:.4,chainRange:145,chainRatio:.45,freezeTime:1.5,freezeSlow:.45,burnTime:3,burnDPS:5,auraRadius:95,auraDPS:8,
@@ -340,9 +309,9 @@ export const BALANCE = Object.freeze({
 
 ```
 
-## js\entities.js
+## js/entities.js
 ```
-import {weaponStats} from './combat.js';
+import {weaponStats,encounterHP} from './combat.js';
 import {permanent} from './shop.js';
 import {updateLoot,drawLoot,hitLoot} from './loot.js';
 import {combatStage,stageHealth,initChallenge,armorFactor,updateEnemyChallenge,updateHazards,drawHazards,healthPressure} from './challenge.js';
@@ -359,7 +328,8 @@ export function spawnEnemy(g,type){
  const stage=combatStage(g),x=type===4?B.track.hordeX:rand(B.track.hordeLeft,B.track.hordeRight),y=type===4?B.bossStartY:rand(80,160);
  const bossScale=type===4?(stage%5===0?B.bossMajorHP:B.bossFinalHP):1;
  const pressure=Math.max(0,(g.mode.healthPressure??healthPressure(g.p.squad))-B.adaptive.baseSquad);
- const hp=(g.mode.fireHP||1)*(1+pressure*(type===4?B.adaptive.bossPerMember:B.adaptive.hpPerMember))*bossScale*B.enemyHP[type]*stageHealth(stage)*(1+B.hpWave*((g.mode.wave-1)%B.wavesPerStage))*(1+B.hpTime*Math.max(0,g.time-B.easyTime)/60);
+ const legacyHP=(type===4&&stage<=4?.03+.02*stage:stage<=2?.75:1)*(g.mode.fireHP||1)*(1+pressure*(type===4?B.adaptive.bossPerMember:B.adaptive.hpPerMember))*bossScale*B.enemyHP[type]*stageHealth(stage)*(1+B.hpWave*((g.mode.wave-1)%B.wavesPerStage))*(1+B.hpTime*Math.max(0,g.time-B.easyTime)/60);
+ const hp=stage<=4?legacyHP:encounterHP(g.p,type,stage);
  const e=g.enemies.take({id:++g.serial,type,x,y,px:x,py:y,r:B.enemyRadius[type],hp,maxHP:hp,speed:B.enemySpeed[type]*Math.min(B.speedCap,1+B.speedWave*g.mode.wave),angle:0,nextNumber:0,flash:0,freeze:0,burn:0,burnPower:0,plates:type===4?2:0,guard:0,lockedX:null,attack:B.bossAttack,phase:0,dash:0,dx:0,dy:0,elite:stage>=B.challenge.shieldStage&&type===2});
  return e?initChallenge(e,stage):null;
 }
@@ -390,12 +360,12 @@ export function hurt(g,damage,source){
 /** direct=false避免爆炸/电链/持续伤害递归触发，所有击杀统一结算。 */
 export function hit(g,e,damage,crit=false,direct=false){if(!e.active||e.guard>0)return;
  damage*=armorFactor(e);
- if(e.shield>0){e.shieldFlash=.25;
+ if(e.shield>0){if(!(e.shieldFlash>0))e.shieldFlash=.25;
    const factor=g.p.pierce>=B.challenge.shieldPierce||g.p.explosive?1:B.challenge.shieldResistance;
    const absorbed=Math.min(e.shield,damage*factor*(1+(g.p.shieldBonus||0)));e.shield-=absorbed;damage=0;
-   if(e.shield<=0){e.exposed=B.challenge.breakWindow;g.fx.ring(e.x,e.y,P.gold);}
+   if(e.shield<=0){e.exposed=B.challenge.breakWindow;g.fx.ring(e.x,e.y,P.gold,e.type===4?160:55);}
  }
- e.hp-=Math.max(0,damage);if(direct||crit||damage>=1)e.flash=.12;if((direct||crit)&&g.time>=(e.nextNumber||0)){g.fx.number(e.x,e.y-e.r,damage,crit);e.nextNumber=g.time+.18;}if(crit)g.shake=Math.max(g.shake,1.2);audio.play('hit');
+ e.hp-=Math.max(0,damage);if(direct||crit||damage>=1)e.flash=.12;if(damage>0&&(direct||crit)&&g.time>=(e.nextNumber||0)){g.fx.number(e.x,e.y-e.r,damage,crit);e.nextNumber=g.time+.18;}if(crit)g.shake=Math.max(g.shake,1.2);audio.play('hit');
  if(e.hp<=0 && e.plates>0){
    e.plates--; e.hp=e.maxHP; e.guard=B.bossWarning;
    e.lockedX=null;
@@ -403,14 +373,14 @@ export function hit(g,e,damage,crit=false,direct=false){if(!e.active||e.guard>0)
    g.ui.toast(e.plates ? '装甲击碎 · 继续集火' : '核心暴露 · 最后一层血量');
    return;
  }
- if(e.hp<=0){e.active=false;g.kills++;g.score=Math.min(1e12,g.score+Math.round(e.maxHP));g.coins+=e.type===4?B.bossCoins:B.coinKill;g.p.hp=Math.min(g.p.maxHP,g.p.hp+(g.p.repairOnKill||0)*healingFactor(g.p));g.corpses.take({x:e.x,y:e.y,type:e.type,angle:-Math.PI/2+.18,life:B.corpseTime});g.fx.burst(e.x,e.y,P[TYPES[e.type]],e.type===4?40:12);let gem=g.gems.take({x:e.x,y:e.y,px:e.x,py:e.y,value:B.enemyXP[e.type],pull:false});if(!gem){let closest=null,d=Infinity;for(const t of g.gems.items){const n=distance2(t,e);if(n<d){d=n;closest=t;}}if(closest)closest.value+=B.enemyXP[e.type];}if(e.type===3){g.fx.ring(e.x,e.y,P.bomber);if(distance2(e,g.p)<B.explosionRadius**2)hurt(g,B.enemyDamage[3]);}}
+ if(e.hp<=0){e.active=false;if(e.type===4&&e.stage>=3){if(g.p.shots<B.maxShots&&e.stage%2===1){g.p.shots++;g.p.upgradeHistory.push('multi');g.ui.toast('首领奖励：分裂弹 +1（已生效）');}else{g.p.squad++;g.ui.toast('首领奖励：增援 +1（已加入）');}g.fx.ring(g.p.x,g.p.y,P.gold);g.persistGrowth?.();}g.kills++;g.score=Math.min(1e12,g.score+Math.round(e.maxHP));g.coins+=e.type===4?B.bossCoins:B.coinKill;g.p.hp=Math.min(g.p.maxHP,g.p.hp+(g.p.repairOnKill||0)*healingFactor(g.p));g.corpses.take({x:e.x,y:e.y,type:e.type,angle:-Math.PI/2+.18,life:B.corpseTime});g.fx.burst(e.x,e.y,P[TYPES[e.type]],e.type===4?24:B.encounter.killParticles);let merged=g.gems.items.find(t=>t.active&&!t.pull&&distance2(t,e)<B.encounter.gemMergeRadius**2);let gem=merged?null:g.gems.take({x:e.x,y:e.y,px:e.x,py:e.y,value:B.enemyXP[e.type],coins:e.type===4?B.coinPickupBoss:(e.type===2||g.kills%B.coinPickupEvery===0?1:0),pull:false});if(!gem){let closest=merged,d=merged?0:Infinity;for(const t of g.gems.items){if(!t.active)continue;const n=distance2(t,e);if(n<d){d=n;closest=t;}}if(closest){closest.value+=B.enemyXP[e.type];closest.coins=(closest.coins||0)+(e.type===4?B.coinPickupBoss:(e.type===2||g.kills%B.coinPickupEvery===0?1:0));}}if(e.type===3){g.fx.ring(e.x,e.y,P.bomber);if(distance2(e,g.p)<B.explosionRadius**2)hurt(g,B.enemyDamage[3]);}}
  if(!e.active && direct && e.burn>0 && g.p.ignite){
    g.fx.ring(e.x,e.y,P.bomber);
    for(const other of g.enemies.items)if(other.active&&distance2(other,e)<B.explosionRadius**2)hit(g,other,g.p.damage*g.p.ignite);
  }
  if(!direct)return;const p=g.p;p.hp=Math.min(p.maxHP,p.hp+p.leech*B.leech*healingFactor(p));e.freeze=(p.freeze||p.slow)?B.freezeTime:e.freeze;e.burn=p.burn?B.burnTime:e.burn;e.burnPower=p.burn*auxiliaryPower(p);
  const angle=Math.atan2(e.y-p.y,e.x-p.x);if (e.type !== 4) { e.x=clamp(e.x+Math.cos(angle)*B.knockback,B.track.hordeLeft,B.track.hordeRight);e.y+=Math.sin(angle)*B.knockback; }
- if(p.explosive){g.fx.ring(e.x,e.y,P.bomber);g.grid.query(e.x,e.y,B.explosionRadius,t=>{if(t!==e&&distance2(t,e)<B.explosionRadius**2)hit(g,t,damage*B.explosionRatio*p.explosive);});}
+ if(p.explosive){if(g.time>=(g.nextBlastVisual||0)){g.fx.burst(e.x,e.y,P.bomber,6,95);g.nextBlastVisual=g.time+.12;}g.grid.query(e.x,e.y,B.explosionRadius,t=>{if(t!==e&&distance2(t,e)<B.explosionRadius**2)hit(g,t,damage*B.explosionRatio*p.explosive);});}
  if(p.chain){let last=e;const visited=new Set([e.id]);for(let i=0;i<Math.min(p.chain,B.maxChain);i++){let next=null,d=B.chainRange**2;for(const t of g.enemies.items)if(t.active&&!visited.has(t.id)){const n=distance2(t,last);if(n<d){d=n;next=t;}}if(!next)break;visited.add(next.id);effect(g,{x:last.x,y:last.y,x2:next.x,y2:next.y,color:P.blue,life:.14,max:.14,width:3});if(p.synergies.has('storm'))next.freeze=B.freezeTime;hit(g,next,damage*(p.synergies.has('storm')?B.stormRatio:B.chainRatio)*(1+(p.conduction||0)));last=next;}}
 }
 function effect(g,o){if(g.effects.length<24)g.effects.push(o);}
@@ -505,7 +475,7 @@ export function updateEntities(g,dt){const p=g.p;p.squad=normalizeSquad(p.squad)
     if(b.pierce<=0)b.mass-=used;else b.pierce--;
     if(!b.mass)b.active=false;}});
  }
- for(const gem of g.gems.items)if(gem.active){gem.px=gem.x;gem.py=gem.y;if(!gem.pull)gem.y+=B.track.scroll*dt;if(gem.y>1280){gem.active=false;continue;}const d=Math.hypot(p.x-gem.x,p.y-gem.y);if(d<p.magnet)gem.pull=true;if(gem.pull){const step=Math.min(d,B.gemSpeed*dt);gem.x+=(p.x-gem.x)/(d||1)*step;gem.y+=(p.y-gem.y)/(d||1)*step;if(Math.random()<g.fx.quality*.2)g.fx.burst(gem.x,gem.y,P.player,1,15);}if(d<24){gem.active=false;p.xp+=gem.value*(1+p.xpBonus);}}
+ for(const gem of g.gems.items)if(gem.active){gem.px=gem.x;gem.py=gem.y;if(!gem.pull)gem.y+=B.track.scroll*dt;if(gem.y>1280){gem.active=false;continue;}const d=Math.hypot(p.x-gem.x,p.y-gem.y);if(d<p.magnet)gem.pull=true;if(gem.pull){const step=Math.min(d,B.gemSpeed*dt);gem.x+=(p.x-gem.x)/(d||1)*step;gem.y+=(p.y-gem.y)/(d||1)*step;if(Math.random()<g.fx.quality*.2)g.fx.burst(gem.x,gem.y,P.player,1,15);}if(d<24){gem.active=false;p.xp+=gem.value*(1+p.xpBonus);g.coins+=gem.coins||0;}}
  for(const c of g.corpses.items)if(c.active){c.life-=dt;if(c.life<=0)c.active=false;}
  for(let i=g.effects.length-1;i>=0;i--){g.effects[i].life-=dt;if(g.effects[i].life<=0)g.effects.splice(i,1);}
  p.hp=Math.min(p.hp,Math.max(0,p.maxHP-(p.breachLoss||0)));
@@ -513,10 +483,10 @@ export function updateEntities(g,dt){const p=g.p;p.squad=normalizeSquad(p.squad)
 }
 export function drawEntities(g,c,alpha){drawLoot(g,c);
  for(const d of g.corpses.items)if(d.active){c.globalAlpha=d.life/B.corpseTime*.45;sprite(c,TYPES[d.type],d.x,d.y,d.angle,d.type===4?4:1,0,false);}c.globalAlpha=1;
- for(const gem of g.gems.items)if(gem.active)sprite(c,'gem',lerp(gem.px,gem.x,alpha),lerp(gem.py,gem.y,alpha),0,1,0,g.fx.quality>.5);
+ for(const gem of g.gems.items)if(gem.active){const x=lerp(gem.px,gem.x,alpha),y=lerp(gem.py,gem.y,alpha);sprite(c,'gem',x,y,0,B.encounter.gemScale,0,false);if(gem.coins){c.strokeStyle=P.gold;c.lineWidth=2;c.beginPath();c.arc(x,y,8,0,7);c.stroke();}}
  const p=g.p;if(p.aura){c.globalAlpha=.13;c.fillStyle=p.synergies.has('eclipse')?P.bomber:P.player;c.beginPath();c.arc(p.x,p.y,B.auraRadius,0,7);c.fill();c.globalAlpha=.6;c.strokeStyle=P.player;c.stroke();c.globalAlpha=1;}
- for(const e of g.enemies.items)if(e.active){const x=lerp(e.px,e.x,alpha),y=lerp(e.py,e.y,alpha);if(e.type>=3){c.globalAlpha=.35+.2*Math.sin(g.time*6);c.strokeStyle=P[TYPES[e.type]];c.lineWidth=e.type===4?4:2;c.beginPath();c.arc(x,y,e.r+9+Math.sin(g.time*5)*5,0,7);c.stroke();c.globalAlpha=1;}sprite(c,TYPES[e.type],x,y,-Math.PI/2+Math.sin(g.time*6+e.id)*.045,e.type===4?4:1,e.flash,g.fx.quality>.5);if(e.shield>0){if(e.shieldFlash>0){c.save();c.strokeStyle=P.white;c.lineWidth=7;c.beginPath();c.arc(x,y,e.r+12+(1-e.shieldFlash/.25)*24,0,7);c.stroke();c.fillStyle=P.gold;c.font='bold 22px system-ui';c.textAlign='center';c.fillText('护盾吸收',x,y-e.r-30);c.restore();}c.strokeStyle=P.gold;c.lineWidth=4;c.strokeRect(x-e.r-5,y-e.r-5,e.r*2+10,e.r*2+10);c.fillStyle=P.gold;c.fillRect(x-e.r,y+e.r+8,e.r*2*e.shield/e.maxShield,5);}if(e.type===4&&e.stage>=B.challenge.startStage){c.fillStyle=e.cycle<B.challenge.armorSeconds?P.gold:P.player;c.font='bold 20px system-ui';c.textAlign='center';c.fillText(e.cycle<B.challenge.armorSeconds?'硬化装甲':'核心暴露 · 集火',x,y-e.r-24);}if(e.freeze>0){c.strokeStyle=P.blue;c.strokeRect(x-e.r,y-e.r,e.r*2,e.r*2);}if(e.type!==4&&e.hp<e.maxHP){c.fillStyle=P.bg;c.fillRect(x-e.r,y-e.r-10,e.r*2,4);c.fillStyle=P.hp;c.fillRect(x-e.r,y-e.r-10,e.r*2*e.hp/e.maxHP,4);}}
- for(const b of g.bullets.items)if(b.active){c.strokeStyle=b.enemy?P.boss:P.bullet;c.globalAlpha=.3;c.lineWidth=b.enemy?5:b.mass>1n?6:3;c.beginPath();c.moveTo(b.x,b.y);c.lineTo(b.x-b.vx*.035,b.y-b.vy*.035);c.stroke();c.globalAlpha=1;if(b.enemy){sprite(c,'hostile',lerp(b.px,b.x,alpha),lerp(b.py,b.y,alpha),b.angle,.6,0,g.fx.quality>.5);}else sprite(c,'bullet',lerp(b.px,b.x,alpha),lerp(b.py,b.y,alpha),b.angle,.7,0,g.fx.quality>.5);}
+ for(const e of g.enemies.items)if(e.active){const x=lerp(e.px,e.x,alpha),y=lerp(e.py,e.y,alpha);if(e.type>=3){c.globalAlpha=.35+.2*Math.sin(g.time*6);c.strokeStyle=P[TYPES[e.type]];c.lineWidth=e.type===4?4:2;c.beginPath();c.arc(x,y,e.r+9+Math.sin(g.time*5)*5,0,7);c.stroke();c.globalAlpha=1;}sprite(c,TYPES[e.type],x,y,-Math.PI/2+Math.sin(g.time*6+e.id)*.045,e.type===4?4:1,e.flash,g.fx.quality>.5);if(e.shield>0){if(e.shieldFlash>0){c.save();c.strokeStyle=P.gold;c.globalAlpha=.65;c.lineWidth=3;c.beginPath();c.arc(x,y,e.r+8+(1-e.shieldFlash/.25)*12,0,7);c.stroke();c.fillStyle=P.gold;c.font='bold 22px system-ui';c.textAlign='center';if(e.type===4)c.fillText('击破护盾后伤害生效',x,y-e.r-30);c.restore();}c.strokeStyle=P.gold;c.lineWidth=4;c.strokeRect(x-e.r-5,y-e.r-5,e.r*2+10,e.r*2+10);c.fillStyle=P.gold;c.fillRect(x-e.r,y+e.r+8,e.r*2*e.shield/e.maxShield,5);}if(e.type===4&&e.stage>=B.challenge.startStage){c.fillStyle=e.cycle<B.challenge.armorSeconds?P.gold:P.player;c.font='bold 20px system-ui';c.textAlign='center';c.fillText(e.cycle<B.challenge.armorSeconds?'硬化装甲':'核心暴露 · 集火',x,y-e.r-24);}if(e.freeze>0){c.strokeStyle=P.blue;c.strokeRect(x-e.r,y-e.r,e.r*2,e.r*2);}if(e.type!==4&&e.hp<e.maxHP){c.fillStyle=P.bg;c.fillRect(x-e.r,y-e.r-10,e.r*2,4);c.fillStyle=P.hp;c.fillRect(x-e.r,y-e.r-10,e.r*2*e.hp/e.maxHP,4);}}
+ for(const b of g.bullets.items)if(b.active){c.strokeStyle=b.enemy?P.boss:P.bullet;c.globalAlpha=.3;c.lineWidth=b.enemy?5:b.mass>1n?3:2;c.beginPath();c.moveTo(b.x,b.y);c.lineTo(b.x-b.vx*.035,b.y-b.vy*.035);c.stroke();c.globalAlpha=1;if(b.enemy){sprite(c,'hostile',lerp(b.px,b.x,alpha),lerp(b.py,b.y,alpha),b.angle,.6,0,g.fx.quality>.5);}else sprite(c,'bullet',lerp(b.px,b.x,alpha),lerp(b.py,b.y,alpha),b.angle,.48,0,false);}
  for(let i=0;i<Math.min(p.drone,B.maxSummons);i++){const a=g.time+i*6.28/Math.min(p.drone,B.maxSummons);sprite(c,'drone',p.x+Math.cos(a)*65,p.y+Math.sin(a)*65,p.angle);}
  for(let i=0;i<Math.min(p.orbit,B.maxSummons);i++){const a=g.time*2+i*6.28/Math.min(p.orbit,B.maxSummons);sprite(c,'drone',p.x+Math.cos(a)*B.orbitRadius,p.y+Math.sin(a)*B.orbitRadius,a,.65);}
  drawSquad(c,p,alpha);drawHazards(g,c);
@@ -525,7 +495,7 @@ export function drawEntities(g,c,alpha){drawLoot(g,c);
 
 ```
 
-## js\game.js
+## js/game.js
 ```
 import {stageBrief} from './challenge.js';
 import { restoreProgress, captureProgress } from './progression.js';
@@ -557,14 +527,13 @@ export class Input {
       this.origin = this.target = game.p.x;
     });
     canvas.addEventListener('pointermove', event => {
-      if (event.pointerId === this.pointer)
-        this.target = this.origin + this.logicalX(event) - this.anchor;
+      if(event.pointerId===this.pointer){this.target=this.origin+this.logicalX(event)-this.anchor;this.move(game.p,0);game.p.px=game.p.x;}
     });
     const release = event => {
       if (event.pointerId !== this.pointer) return;
       if (event.type === 'pointerup') {
         this.target = this.origin + this.logicalX(event) - this.anchor;
-        this.pointer = null;
+        this.move(game.p,0);game.p.px=game.p.x;this.pointer=null;this.target=null;
       } else this.reset();
     };
     for (const type of ['pointerup', 'pointercancel', 'lostpointercapture'])
@@ -600,7 +569,7 @@ export class Input {
     const right = this.keys.has('ArrowRight') || this.keys.has('KeyD');
     const left = this.keys.has('ArrowLeft') || this.keys.has('KeyA');
     const delta = this.target === null ? (Number(right) - Number(left)) * step
-                                      : clamp(this.target - player.x, -step, step);
+                                      : this.target - player.x;
     const edge = 47 + (Math.min(visibleTroopers(player.squad), B.track.columns) - 1) * B.track.spacing / 2;
     player.x = clamp(player.x + delta, edge, B.width - edge);
     if (this.pointer === null && this.target !== null &&
@@ -622,6 +591,7 @@ export class Game{
    this.acc = 0;
    this.last = 0;
    if (hidden) {
+     if(this.mode?.kind==='endless'&&['playing','paused'].includes(this.state))this.checkpointEndless();
      this.backgroundPause = this.state === 'playing';
      if (this.backgroundPause) this.state = 'background';
      this.input.reset();
@@ -637,12 +607,12 @@ export class Game{
  }
  detailScale(){return this.fx.quality<.45?.7:this.fx.quality<.65?.85:1;}
  resize(){const host=document.querySelector('#viewport').getBoundingClientRect(),scale=Math.min(host.width/B.width,host.height/B.height);document.documentElement.style.setProperty('--touch-min',Math.ceil(48/Math.max(.25,scale))+'px');document.querySelector('#stage').style.transform=`scale(${scale})`;this.pixelRatio=Math.min(B.dpr,window.devicePixelRatio||1);this.renderDetail=this.detailScale();const res=Math.min(1,scale)*this.pixelRatio*this.renderDetail;this.canvas.width=Math.round(B.width*res);this.canvas.height=Math.round(B.height*res);this.ctx.setTransform(this.canvas.width/B.width,0,0,this.canvas.height/B.height,0,0);}
- start(kind,stage=1){this.mode=new Mode(kind,stage);this.p=player();this.p.upgradeHistory=[];this.p.pendingUpgrades=0;this.claiming=false;this.offers=null;if(kind==='campaign')restoreProgress(this.p,save.data.campaign);this.runway=new Runway(this.p.squad);this.runway.rows=[];this.runway.serial=0;this.runway.addRow(475,this.p.squad,this.p);this.loot=[];this.lootClock=3;this.turrets=[];this.time=0;this.edgeWarning=0;this.leaks=0;this.score=0;this.coins=0;this.kills=0;this.freeze=0;this.shake=0;this.acc=0;for(const pool of [this.enemies,this.bullets,this.gems,this.corpses,this.hazards])pool.clear();this.fx.clear();this.effects.length=0;this.nextEliteStrike=0;this.state='playing';this.input.reset();this.ui.show('');this.ui.setupHUD();this.mode.next(this);this.runway.openingConvoy(this);this.ui.update();this.ui.toast(stageBrief(stage));audio.unlock();}
+ start(kind,stage=1){this.mode=new Mode(kind,stage);this.p=player();this.p.upgradeHistory=[];this.p.pendingUpgrades=0;this.claiming=false;this.offers=null;if(kind==='campaign')restoreProgress(this.p,save.data.campaign);else if(save.data.endless)restoreProgress(this.p,save.data.endless.progress);this.runway=new Runway(this.p.squad);this.runway.rows=[];this.runway.serial=0;this.runway.addRow(475,this.p.squad,this.p);if(stage===1&&kind==='campaign'){this.runway.rows[0].gates[0].stat='rate';this.runway.rows[0].gates[0].value=2n;}this.loot=[];this.lootSerial=0;this.lootClock=B.director.lootFirst;this.healClock=B.director.healFirst;this.turrets=[];this.time=0;this.edgeWarning=0;this.leaks=0;this.score=0;this.coins=0;this.kills=0;this.freeze=0;this.shake=0;this.acc=0;for(const pool of [this.enemies,this.bullets,this.gems,this.corpses,this.hazards])pool.clear();this.fx.clear();this.effects.length=0;this.nextEliteStrike=0;this.state='playing';this.input.reset();this.ui.show('');this.ui.setupHUD();if(kind==='endless'&&save.data.endless)this.restoreEndless(save.data.endless);else{this.mode.next(this);this.runway.openingConvoy(this);}this.ui.update();this.ui.toast(stageBrief(stage));audio.unlock();}
  spawnEnemy(type){const e=spawnEnemy(this,type);if(e&&type===4){audio.play('boss');this.ui.toast('重甲首领入场');}return e;}
  pause(){if(this.state!=='playing')return;this.claiming=false;this.state='paused';this.acc=0;this.input.reset();this.ui.paused();}
  resume(){if(this.state!=='paused')return;this.state='playing';this.acc=0;this.last=performance.now();this.ui.show('');}
  /** 等级只积攒领取次数；不改变模拟状态，不弹窗、不重置触摸。 */
- levelUp(){const p=this.p;while(p.xp>=p.nextXP&&Number.isFinite(p.nextXP)){p.xp-=p.nextXP;p.nextXP=Math.ceil(p.nextXP*B.xpGrowth);p.level++;this.lootClock=Math.min(this.lootClock||0,1);}this.persistGrowth();}
+ levelUp(){const p=this.p;while(p.xp>=p.nextXP&&Number.isFinite(p.nextXP)){p.xp-=p.nextXP;p.nextXP=Math.ceil(p.nextXP*B.xpGrowth);p.level++;/* 等级提升不催生补给，独立刷新时钟。 */}this.persistGrowth();}
  persistGrowth(){if(this.mode.kind==='campaign'){save.data.campaign=captureProgress(this.p,save.data.campaign);save.write();}}
  openUpgrades(){if(this.state!=='playing'||!this.p.pendingUpgrades)return;this.claiming=true;this.offers=this.offers?.length?this.offers:choices(this.p);this.ui.upgrade(this.offers);}
  closeUpgrades(){this.claiming=false;this.ui.overlay.innerHTML='';}
@@ -651,7 +621,12 @@ export class Game{
  choose(u){if(this.state!=='playing'||!this.claiming||!this.offers.includes(u))return;if(!this.applyUpgrade(u))return;this.persistGrowth();if(this.p.pendingUpgrades)this.openUpgrades();else this.closeUpgrades();audio.play('upgrade');}
  /** 批领只从每次真实三选一卡中选取：优先专精进阶，其次低等级；专精由玩家亲选。 */
  claimAll(){if(this.state!=='playing'||!this.claiming)return;let count=0;const names=new Map();while(this.p.pendingUpgrades){const offered=this.offers;if(!offered.length||offered.every(u=>u.group==='专精'))break;const ranked=[...offered].sort((a,b)=>(b.group!=='基础')-(a.group!=='基础')||this.p.upgradeHistory.filter(id=>id===a.id).length-this.p.upgradeHistory.filter(id=>id===b.id).length);const u=ranked[0];if(!this.applyUpgrade(u))break;count++;names.set(u.name,(names.get(u.name)||0)+1);this.offers=choices(this.p);}this.persistGrowth();if(this.p.pendingUpgrades)this.ui.upgrade(this.offers);else this.closeUpgrades();this.ui.toast(count?`已领取 ${count} 项：${[...names].map(([n,k])=>n+'×'+k).join('、')}`:'请先亲自选择专精');}
- finish(win){if(this.state==='ended')return;this.state='ended';this.input.reset();if(win){this.coins+=B.stageCoins*this.mode.stage;}this.claiming=false;this.levelUp();const d=save.data;if(this.mode.kind==='campaign')d.campaign=captureProgress(this.p,d.campaign,win,this.mode.stage);d.coins=Math.min(Number.MAX_SAFE_INTEGER,d.coins+this.coins);if(win&&this.mode.kind==='campaign')d.stage=Math.max(d.stage,Math.min(15,this.mode.stage+1));if(this.mode.kind==='endless'){d.best=Math.max(d.best,this.score);d.top.push(this.score);d.top.sort((a,b)=>b-a);d.top=d.top.slice(0,10);}save.write();this.ui.result(win);if(save.warning)this.ui.toast(save.warning);}
+ /** 主动结算只支付本次新增金币；敌人血量、波次与生命原样续接。 */
+ checkpointEndless(){if(this.mode?.kind!=='endless'||this.state==='ended'||this.p.hp<=0)return;save.data.endless=this.endlessSnapshot();save.data.coins=Math.min(Number.MAX_SAFE_INTEGER,save.data.coins+this.coins);this.coins=0;save.write();}
+ exitEndless(){if(this.mode.kind!=='endless')return;this.finish(false,true);this.ui.menu();this.ui.toast('无限进度已保存、信用点已结算；购买后可续战');}
+ endlessSnapshot(){return {lootSerial:this.lootSerial||0,hazards:this.hazards.items.filter(h=>h.active).map(({owner,...h})=>h),x:this.p.x,kills:this.kills,leaks:this.leaks,loot:this.loot.map(o=>({...o})),turrets:this.turrets.map(t=>({...t})),rows:this.runway.rows.map(r=>({...r,gates:r.gates.map(t=>({...t,value:String(t.value),charge:String(t.charge||0),scale:String(t.scale||10)}))})),drums:this.runway.drums.map(d=>({...d})),progress:captureProgress(this.p,save.data.endless?.progress||save.data.campaign,true),wave:this.mode.wave,elapsed:this.mode.elapsed,time:this.time,remaining:this.mode.remaining,budget:this.mode.budget,bossSpawned:this.mode.bossSpawned,spawnTimer:this.mode.spawnTimer,enemies:this.enemies.items.filter(e=>e.active).map(e=>({...e})),hp:this.p.hp,breachLoss:this.p.breachLoss||0,score:this.score,gateWait:Math.max(8,this.runway.nextRow),lootWait:Math.max(8,this.lootClock),healWait:Math.max(8,this.healClock)};}
+ restoreEndless(s){const m=this.mode;m.wave=s.wave-1;m.local=s.wave-1;m.next(this);Object.assign(m,{elapsed:s.elapsed,remaining:s.remaining,budget:s.budget,bossSpawned:s.bossSpawned,spawnTimer:s.spawnTimer??1});this.time=s.time;this.score=s.score;this.lootSerial=s.lootSerial||0;this.p.x=this.p.px=s.x??192;this.kills=s.kills||0;this.leaks=s.leaks||0;this.loot=s.loot||[];this.turrets=s.turrets||[];this.p.hp=s.hp;this.p.breachLoss=s.breachLoss;this.serial=0;for(const data of s.enemies){this.enemies.take({...data,active:true,px:data.x,py:data.y});this.serial=Math.max(this.serial,data.id);}for(const h of s.hazards||[]){const owner=this.enemies.items.find(e=>e.active&&e.id===h.ownerId);if(owner)this.hazards.take({...h,owner});}this.runway.rows=(s.rows||[]).map(r=>({...r,gates:r.gates.map(t=>({...t,value:BigInt(t.value),charge:BigInt(t.charge||0),scale:BigInt(t.scale||10)}))}));this.runway.drums=s.drums||[];this.runway.nextRow=s.gateWait??32;this.lootClock=s.lootWait??B.director.lootFirst;this.healClock=s.healWait??B.director.healFirst;}
+ finish(win,exiting=false){if(this.state==='ended')return;this.state='ended';this.input.reset();if(win){this.coins+=B.stageCoins*this.mode.stage;}this.claiming=false;this.levelUp();const d=save.data;if(this.mode.kind==='campaign')d.campaign=captureProgress(this.p,d.campaign,win,this.mode.stage);d.coins=Math.min(Number.MAX_SAFE_INTEGER,d.coins+this.coins);if(win&&this.mode.kind==='campaign')d.stage=Math.max(d.stage,Math.min(B.stages,this.mode.stage+1));if(this.mode.kind==='endless'){d.endless=exiting&&this.p.hp>0?this.endlessSnapshot():null;d.best=Math.max(d.best,this.score);d.top.push(this.score);d.top.sort((a,b)=>b-a);d.top=d.top.slice(0,10);}save.write();this.ui.result(win);if(save.warning)this.ui.toast(save.warning);}
  /** 固定60Hz模拟，累加器最多补6步，避免长帧死亡螺旋；渲染插值上个/当前坐标。 */
  frame(now){if(document.hidden||this.suspended)return;const raw=this.last?(now-this.last)/1000:1/60,dt=clamp(raw,0,.1);this.last=now;this.visualTime+=dt;this.fps=this.fps*.95+(1/Math.max(.001,raw))*.05;
   this.qualityClock+=dt;if(this.qualityClock>2){this.qualityClock=0;if(this.fps<B.qualityLowFPS)this.fx.quality=Math.max(B.qualityMin,this.fx.quality-.15);else if(this.fps>B.qualityHighFPS)this.fx.quality=Math.min(1,this.fx.quality+.05);if(this.detailScale()!==this.renderDetail)this.resize();}
@@ -667,7 +642,7 @@ export class Game{
 
 ```
 
-## js\icons.js
+## js/icons.js
 ```
 import {PALETTE as P} from './config.js';
 export const icons={};
@@ -691,7 +666,7 @@ export const iconHTML=id=>icons[id]?`<img class="item-icon" src="${icons[id].url
 
 ```
 
-## js\loot.js
+## js/loot.js
 ```
 import {weaponStats,bulletFlow} from './combat.js';
 import {icons} from './icons.js';
@@ -699,15 +674,17 @@ import {UPGRADES} from './upgrades.js';
 import {BALANCE as B,PALETTE as P} from './config.js';
 import {hit} from './entities.js';
 const pool=['damage','rate','pierce','range','blast','slow','breaker','focus','close','execute','multi','magnet','recruit','turret','grenade','laser'];
-export const unlockHits=(id,p)=>Math.ceil(Math.max(B.lootCost[id]??24,p?bulletFlow(p)*({grenade:4,laser:8,turret:6,recruit:12}[id]??2):0));
+export const unlockHits=(id,p)=>Math.ceil(Math.max(p&&bulletFlow(p)<12?({grenade:6,laser:12,turret:8,recruit:180}[id]??5):(B.lootCost[id]??24),p?bulletFlow(p)*({grenade:4,laser:8,turret:6,recruit:12}[id]??2):0));
 export {weaponStats} from './combat.js';
 export function rollLoot(luck=0,random=Math.random){if(random()<.003)return 'recruit';const advanced=['blast','breaker','focus','execute','multi','turret','grenade','laser'];const basic=['damage','rate','pierce','range','slow','close','magnet'];const set=random()<Math.min(1,.18+luck)?advanced:basic;return set[Math.floor(random()*set.length)];}
-const names={recruit:'增援队员',turret:'固定炮台',grenade:'集束手雷',laser:'一次性激光炮'};
+const names={heal:'医疗补给',recruit:'增援队员',turret:'固定炮台',grenade:'集束手雷',laser:'一次性激光炮'};
 /** 补给独立随机刷新；命中扣弹数，解锁后仍须移动接取。 */
 export function updateLoot(g,dt){
- g.loot??=[];g.turrets??=[];g.lootClock=(g.lootClock??3)-dt;
- if(g.lootClock<=0&&g.loot.length<2){g.lootClock=7+Math.random()*4;const rolled=rollLoot(g.p.luck),id=rolled==='rate'&&weaponStats(g.p).rate>=B.director.rateCap?'damage':rolled;g.loot.push({x:140+Math.random()*440,y:140,id,hits:unlockHits(id,g.p),total:unlockHits(id,g.p),lastHit:-Infinity,age:0});}
+ g.loot??=[];g.turrets??=[];g.lootClock=(g.lootClock??B.director.lootFirst)-dt;
+ if(g.lootClock<=0&&g.loot.length<2){const late=g.p.shots>=3||bulletFlow(g.p)>40;g.lootClock=(late?B.director.lateLootInterval:B.director.lootInterval)+Math.random()*(late?B.director.lateLootJitter:B.director.lootJitter);const serial=g.lootSerial||0;g.lootSerial=serial+1;const rolled=serial%2===0?['grenade','turret','laser'][Math.floor(serial/2)%3]:rollLoot(g.p.luck),id=rolled==='rate'&&weaponStats(g.p).rate>=B.director.rateCap?'damage':rolled;g.loot.push({x:180+Math.random()*360,y:140,id,hits:unlockHits(id,g.p),total:unlockHits(id,g.p),lastHit:-Infinity,age:0});}
+ g.healClock=(g.healClock??B.director.healFirst)-dt;if(g.healClock<=0){g.healClock=B.director.healInterval;if(g.p.hp<g.p.maxHP&&!g.loot.some(o=>o.id==='heal'))g.loot.push({x:180+Math.random()*360,y:180,id:'heal',hits:0,age:0});}
  for(let i=g.loot.length-1;i>=0;i--){const o=g.loot[i];o.age=(o.age||0)+dt;o.y+=150*dt*(o.hits>0&&g.time-(o.lastHit??-Infinity)<.85&&o.age<25?.25:1);if(o.hits===0&&Math.abs(o.x-g.p.x)<65&&Math.abs(o.y-g.p.y)<45){
+ if(o.id==='heal'){g.p.breachLoss=Math.max(0,(g.p.breachLoss||0)-B.director.healAmount);g.p.hp=Math.min(g.p.maxHP-(g.p.breachLoss||0),g.p.hp+B.director.healAmount);}
  const u=UPGRADES.find(u=>u.id===o.id);if(u&&!u.active){u.apply(g.p);g.p.upgradeHistory.push(u.id);g.persistGrowth();}
  if(o.id==='recruit')g.p.squad+=1n;
  if(['turret','grenade','laser'].includes(o.id)){g.p.inventory??={};g.p.inventory[o.id]=(g.p.inventory[o.id]||0)+1;g.persistGrowth();}
@@ -716,7 +693,7 @@ export function updateLoot(g,dt){
  for(let i=g.turrets.length-1;i>=0;i--){const t=g.turrets[i];t.life-=dt;t.fire-=dt;if(t.life<=0){g.turrets.splice(i,1);continue;}if(t.fire<=0){t.fire=.2;const b=g.bullets.take({x:t.x,y:t.y,px:t.x,py:t.y,vx:0,vy:-760,angle:-Math.PI/2,damage:weaponStats(g.p).damage,mass:1n,life:2,pierce:1,enemy:false});b?.hits.clear();}}
 }
 export function hitLoot(g,b){if(b.enemy)return false;for(const o of g.loot||[])if(o.hits>0&&Math.abs(b.x-o.x)<50&&b.py>=o.y-35&&b.y<=o.y+35){const used=(b.mass??1n)<BigInt(o.hits)?(b.mass??1n):BigInt(o.hits);o.hits-=Number(used);b.mass=(b.mass??1n)-used;o.lastHit=g.time;if(b.mass===0n)b.active=false;return !b.active;}return false;}
-export function drawLoot(g,c){c.save();c.textAlign='center';for(const o of g.loot||[]){c.fillStyle=P.panel;c.strokeStyle=o.hits?P.gold:P.player;c.lineWidth=4;c.fillRect(o.x-55,o.y-40,110,80);c.strokeRect(o.x-55,o.y-40,110,80);c.fillStyle=o.hits?P.gold:P.player;c.font='bold 23px system-ui';if(icons[o.id])c.drawImage(icons[o.id].canvas,o.x-35,o.y-39,70,70);c.fillText(o.hits?'-'+o.hits:'接取',o.x,o.y+62);c.font='18px system-ui';c.fillText(UPGRADES.find(u=>u.id===o.id)?.name||names[o.id],o.x,o.y-55);}for(const t of g.turrets||[]){c.fillStyle=P.blue;c.fillRect(t.x-22,t.y-14,44,28);c.fillStyle=P.gold;c.fillRect(t.x-5,t.y-45,10,38);}c.restore();}
+export function drawLoot(g,c){c.save();c.textAlign='center';for(const o of g.loot||[]){c.fillStyle=P.panel;c.strokeStyle=o.hits?P.gold:P.player;c.lineWidth=4;c.fillRect(o.x-55,o.y-40,110,80);c.strokeRect(o.x-55,o.y-40,110,80);c.fillStyle=o.hits?P.gold:P.player;c.font='bold 23px system-ui';if(icons[o.id]||o.id==='heal')c.drawImage((icons[o.id]||icons.hp).canvas,o.x-35,o.y-39,70,70);c.fillText(o.hits?'-'+o.hits:'接取',o.x,o.y+62);c.font='18px system-ui';c.fillText(UPGRADES.find(u=>u.id===o.id)?.name||names[o.id],o.x,o.y-55);}for(const t of g.turrets||[]){c.fillStyle=P.blue;c.fillRect(t.x-22,t.y-14,44,28);c.fillStyle=P.gold;c.fillRect(t.x-5,t.y-45,10,38);}c.restore();}
 
 /** 仅按钮主动释放，拾取和刷新不触发。 */
 export function useItem(g,id){if(g.state!=='playing'||!['turret','grenade','laser'].includes(id)||!(g.p.inventory?.[id]>0))return false;g.p.inventory[id]--;g.persistGrowth();
@@ -727,7 +704,7 @@ export function useItem(g,id){if(g.state!=='playing'||!['turret','grenade','lase
 
 ```
 
-## js\main.js
+## js/main.js
 ```
 import {initIcons} from './icons.js';
 import {initAssets,assets} from './assets.js';
@@ -757,9 +734,11 @@ if(location.hostname==='appassets.androidplatform.net'||window.Capacitor?.isNati
 else if('serviceWorker'in navigator&&window.isSecureContext){navigator.serviceWorker.register('./sw.js').then(async()=>{await navigator.serviceWorker.ready;status.textContent='OFFLINE READY · 全部资源已缓存';}).catch(()=>{status.textContent='离线缓存失败 · 请通过 localhost 或 HTTPS 重试';});}
 else status.textContent='请通过 localhost / HTTPS 启动，以启用离线缓存';
 
+window.addEventListener('pagehide',()=>game.checkpointEndless());
+
 ```
 
-## js\modes.js
+## js/modes.js
 ```
 import {combatProfile} from './combat.js';
 import { healthPressure } from './challenge.js';
@@ -772,12 +751,17 @@ export function difficulty(mode, level = 1, squad = B.track.startSquad) {
   const local = mode.kind === 'campaign' ? mode.local : 1 + (mode.wave - 1) % B.wavesPerStage;
   const power = Math.max(0, level - 1);
   const extra=Math.max(0,(typeof squad==='bigint'?armyPressure(squad):Number(squad))-B.adaptive.baseSquad);
-  return {
+  const result={
     population: Math.round(B.spawnCount + B.spawnGrowth * (stage - 1) ** B.spawnStagePower + B.spawnWaveGrowth * (local - 1) + B.spawnLevelGrowth * power + B.adaptive.budgetPerMember*extra),
-    pack: Math.min(B.enemies, B.packBase + B.packStageGrowth * (stage - 1) + B.packWaveGrowth * (local - 1) + Math.floor(power / B.packLevelDivisor)+Math.floor(extra*B.adaptive.packPerMember)+(mode.aoe?8:0)),
+    pack: Math.min(B.enemies, B.packBase + B.packStageGrowth * (stage - 1) + B.packWaveGrowth * (local - 1) + Math.floor(power / B.packLevelDivisor)+Math.floor(extra*B.adaptive.packPerMember)+(mode.aoe?4:0)),
     interval: Math.max(B.packMinInterval, B.packInterval / (1 + B.packIntervalStage * (stage - 1) + B.packIntervalWave * (local - 1) + B.packIntervalLevel * power + extra*B.adaptive.intervalPerMember)),
     stage, local
   };
+  // 前四关的预算连续延伸；火力只小幅增加预算，不产生第五关的六倍突增。
+  result.population=Math.min(result.population,12+local*6+(stage-1)*B.encounter.latePopulationStep);
+  result.pack=Math.min(result.pack,stage+2,B.encounter.packCap);
+  result.interval=Math.max(result.interval,stage<=4?[0,2.8,2.2,1.8,1.5][stage]:B.encounter.intervalFloor);
+  return result;
 }
 export class Mode {
   constructor(kind, stage = 1) {
@@ -811,17 +795,19 @@ export class Mode {
 
   spawnPack(game) {
     // 批次随等级和路段递增；第一波只出现普通小怪。
-    const profile=combatProfile(game.p),columns=profile.columns;const center=Math.max(160,Math.min(560,game.p.x));
+    const profile=combatProfile(game.p),columns=profile.columns;const center=[240,480,360][this.packet%3];
     const limit = Math.min(this.remaining, B.enemies - game.enemies.count, difficulty(this, game.p?.level,this.pressureSquad).pack);
-    const shift = (this.packet++ % 2) * 8;
+    const stage=this.kind==='campaign'?this.stage:1+Math.floor((this.wave-1)/B.wavesPerStage);
+    const scattered=stage>=B.director.scatterStage||profile.power>=B.director.scatterPower;
+    this.packet++;
     for (let i = 0; i < limit; i++) {
       const roll = Math.random();
       const type = this.wave === 1 ? 0 : this.wave > 2 && roll > B.tankThreshold - Math.min(.35,Math.max(0,this.pressureSquad-2)*B.adaptive.elitePerMember) ? 2 :
         this.wave > 1 && roll < B.bomberChance ? 3 : roll < B.fastChance ? 1 : 0;
       const enemy = game.spawnEnemy(type);
       if (!enemy) break;
-      enemy.x = enemy.px = center + (i%columns-(columns-1)/2)*38;
-      enemy.y = enemy.py = 155 - Math.floor(i / columns) * 28 + Math.random() * 18;
+      enemy.x = enemy.px = scattered?B.track.hordeLeft+Math.random()*(B.track.hordeRight-B.track.hordeLeft):Math.max(B.track.hordeLeft,Math.min(B.track.hordeRight,center + (i%columns-(columns-1)/2)*38));
+      enemy.y = enemy.py = stage<=4?(scattered?90-Math.random()*240:155-Math.floor(i/columns)*28+Math.random()*18):(scattered?B.encounter.spawnTop+Math.random()*B.encounter.spawnDepth:B.encounter.spawnTop+Math.floor(i/columns)*28+Math.random()*18);
       this.remaining--;
     }
   }
@@ -859,7 +845,7 @@ export class Mode {
 
 ```
 
-## js\particles.js
+## js/particles.js
 ```
 import {BALANCE as B,PALETTE as P} from './config.js';
 import {Pool,rand} from './utils.js';
@@ -867,22 +853,22 @@ import {assets} from './assets.js';
 export class Particles{
  constructor(){this.pool=new Pool(B.particles);this.numbers=new Pool(B.numbers);this.quality=1;}
  burst(x,y,color,count=12,speed=140){for(let i=0;i<Math.ceil(count*this.quality);i++){const a=rand(0,Math.PI*2),s=rand(20,speed),life=rand(.18,.6);this.pool.take({x,y,px:x,py:y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life,max:life,color,ring:false,size:rand(2,5)});}}
- ring(x,y,color){this.pool.take({x,y,px:x,py:y,vx:0,vy:0,life:.6,max:.6,color,ring:true,size:10});}
- number(x,y,value,crit=false){this.numbers.take({x,y,start:y,life:.7,max:.7,value:String(Math.ceil(value)),crit});}
- update(dt){for(const p of this.pool.items)if(p.active){p.px=p.x;p.py=p.y;p.life-=dt;if(p.life<=0){p.active=false;continue;}p.x+=p.vx*dt;p.y+=p.vy*dt;p.vx*=.96;p.vy*=.96;if(p.ring)p.size+=440*dt;}for(const p of this.numbers.items)if(p.active){p.life-=dt;p.y=p.start-48*(1-(p.life/p.max)**2);if(p.life<=0)p.active=false;}}
- draw(c){c.save();c.globalCompositeOperation='lighter';for(const p of this.pool.items)if(p.active){c.globalAlpha=p.life/p.max;if(p.ring){c.strokeStyle=p.color;c.lineWidth=3;c.beginPath();c.arc(p.x,p.y,p.size,0,7);c.stroke();}else{c.drawImage(assets.sparks[p.color],p.x,p.y,p.size,p.size);if(this.quality>.5)c.drawImage(assets.glows.gem,p.x-14,p.y-14,28,28);}}c.restore();for(const n of this.numbers.items)if(n.active){c.globalAlpha=Math.min(1,n.life*4);c.fillStyle=n.crit?P.crit:P.text;c.font=`bold ${n.crit?27:19}px monospace`;c.textAlign='center';c.fillText(n.value,n.x,n.y);}c.globalAlpha=1;}
+ ring(x,y,color,radius=260){this.pool.take({x,y,px:x,py:y,vx:0,vy:0,life:.6,max:.6,color,ring:true,size:10,growth:(radius-10)/.6});}
+ number(x,y,value,crit=false){this.numbers.take({x,y,start:y,life:.7,max:.7,value:value>=1e6?(value/1e6).toFixed(1)+'M':value>=1e4?(value/1e3).toFixed(0)+'K':String(Math.ceil(value)),crit});}
+ update(dt){for(const p of this.pool.items)if(p.active){p.px=p.x;p.py=p.y;p.life-=dt;if(p.life<=0){p.active=false;continue;}p.x+=p.vx*dt;p.y+=p.vy*dt;p.vx*=.96;p.vy*=.96;if(p.ring)p.size+=p.growth*dt;}for(const p of this.numbers.items)if(p.active){p.life-=dt;p.y=p.start-48*(1-(p.life/p.max)**2);if(p.life<=0)p.active=false;}}
+ draw(c){c.save();c.globalCompositeOperation='lighter';for(const p of this.pool.items)if(p.active){c.globalAlpha=p.life/p.max;if(p.ring){c.strokeStyle=p.color;c.lineWidth=3;c.beginPath();c.arc(p.x,p.y,p.size,0,7);c.stroke();}else{c.drawImage(assets.sparks[p.color],p.x,p.y,p.size,p.size);if(this.quality>.5)c.drawImage(assets.glows.gem,p.x-14,p.y-14,28,28);}}c.restore();for(const n of this.numbers.items)if(n.active){c.globalAlpha=Math.min(1,n.life*4);c.fillStyle=n.crit?P.crit:P.text;c.font=`bold ${n.crit?21:17}px monospace`;c.textAlign='center';c.fillText(n.value,n.x,n.y);}c.globalAlpha=1;}
  clear(){this.pool.clear();this.numbers.clear();}
 }
 
 ```
 
-## js\progression.js
+## js/progression.js
 ```
 import { normalizeSquad } from './runway.js';
 import { BALANCE as B } from './config.js';
 import { UPGRADES, SYNERGIES } from './upgrades.js';
 
-export const freshProgress = () => ({ history: [], pending: 0, xp: 0, squad: '1', rerolls: null, nextStage: 1 });
+export function freshProgress(){return {history:[],pending:0,xp:0,squad:'1',rerolls:null,nextStage:1};}
 /** 只保存已选强化ID；从基础角色重放，避免跨关重复叠加永久商店属性。 */
 export function validateProgress(data) {
   if (data === undefined) return freshProgress();
@@ -892,9 +878,9 @@ export function validateProgress(data) {
       !Number.isFinite(data.xp) || data.xp < 0 ||
       typeof data.squad !== 'string' || !/^[1-9][0-9]*$/.test(data.squad) ||
       !(data.rerolls === null || (Number.isSafeInteger(data.rerolls) && data.rerolls >= 0)) ||
-      !Number.isInteger(data.nextStage) || data.nextStage < 1 || data.nextStage > B.stages)
+      !Number.isInteger(data.nextStage) || data.nextStage < 1 || data.nextStage > 15)
     throw Error('闯关成长存档不合法');
-  return { history: data.history.filter(id=>UPGRADES.some(u=>u.id===id)&&!id.startsWith('spec_')&&!UPGRADES.find(u=>u.id===id).active), inventory:Object.fromEntries(["grenade","laser","turret"].map(k=>[k,Math.max(0,Math.min(999,Math.floor(Number(data.inventory?.[k])||0)))])),gateRate:Number.isFinite(data.gateRate)?data.gateRate:null,gateDamage:Number.isFinite(data.gateDamage)?data.gateDamage:null,pending:0,weapon:Math.max(1,Number.isSafeInteger(data.weapon)?data.weapon:1), xp: data.xp, squad: String(normalizeSquad(data.squad)), rerolls: data.rerolls, nextStage: data.nextStage };
+  return { history: data.history.filter(id=>UPGRADES.some(u=>u.id===id)&&!id.startsWith('spec_')&&!UPGRADES.find(u=>u.id===id).active), inventory:Object.fromEntries(["grenade","laser","turret"].map(k=>[k,Math.max(0,Math.min(999,Math.floor(Number(data.inventory?.[k])||0)))])),gateRate:Number.isFinite(data.gateRate)?data.gateRate:null,gateDamage:Number.isFinite(data.gateDamage)?data.gateDamage:null,level:Number.isSafeInteger(data.level)&&data.level>0&&data.level<=2000?data.level:data.history.length+1,pending:0,weapon:Math.max(1,Number.isSafeInteger(data.weapon)?data.weapon:1), xp: data.xp, squad: String(normalizeSquad(data.squad)), rerolls: data.rerolls, nextStage: Math.min(B.stages,data.nextStage) };
 }
 export function xpThreshold(level) {
   let need = B.xpBase;
@@ -905,7 +891,7 @@ export function restoreProgress(p, data) {
   p.upgradeHistory = [...data.history];
   for (const id of data.history) UPGRADES.find(u => u.id === id).apply(p);
   p.inventory={...(data.inventory||{})};p.pendingUpgrades=0;p.weapon=data.weapon||1;p.gateRate=data.gateRate??((p.weapon-1)*.18/p.rate);p.gateDamage=data.gateDamage??(p.damage*(p.weapon-1)*.3);
-  p.level = data.history.length + p.pendingUpgrades + 1;
+  p.level = data.level||data.history.length+1;
   p.nextXP = xpThreshold(p.level);
   p.xp = data.xp;
   p.squad = normalizeSquad(data.squad);p.homing=0;
@@ -916,14 +902,14 @@ export function restoreProgress(p, data) {
 }
 /** 失败保留已选强化和经验；过关才更新下关的编队快照。 */
 export function captureProgress(p, previous, won = false, stage = 1) {
-  return { history: [...(p.upgradeHistory || [])], inventory:{...(p.inventory||{})},gateRate:p.gateRate||0,gateDamage:p.gateDamage||0,pending:0,weapon:p.weapon||1, xp: p.xp,
+  return { history: [...(p.upgradeHistory || [])], inventory:{...(p.inventory||{})},gateRate:p.gateRate||0,gateDamage:p.gateDamage||0,level:p.level,pending:0,weapon:p.weapon||1, xp: p.xp,
     squad: won ? String(normalizeSquad(p.squad > 0n ? p.squad : 1n)) : String(normalizeSquad(previous.squad)),
     rerolls: p.rerolls, nextStage: won ? Math.min(B.stages, stage + 1) : previous.nextStage };
 }
 
 ```
 
-## js\runway.js
+## js/runway.js
 ```
 import {gateNeed,applyGate} from './combat.js';
 import {icons} from './icons.js';
@@ -997,15 +983,15 @@ export class Runway {
 
   /** 尸潮全部从道路前方推进；两侧轮换数字门和油桶，横移分配火力。 */
   openingConvoy(game) {
-    const count = Math.min(game.mode.remaining, track.openingMax, track.openingSize + (game.mode.stage - 1) * track.openingStageGrowth);
+    const count = Math.min(game.mode.remaining, game.mode.stage<=4?track.openingMax:6, track.openingSize + (game.mode.stage - 1) * track.openingStageGrowth);
     for (let i = 0; i < count; i++) {
       const enemy = game.spawnEnemy(0);
       if (!enemy) break;
       game.mode.remaining--;
       // 所有刷怪入口集中在前方，不从玩家两翼包夹。
       const vanguard = i < 10;
-      enemy.x = enemy.px = game.p.x;
-      enemy.y = enemy.py = vanguard ? 390 - i * 45 : 300 - Math.floor((i - 10) / 10) * 52;
+      enemy.x = enemy.px = [200,360,520][i%3];
+      enemy.y = enemy.py = game.mode.stage<=4?(vanguard ? 390 - i * 95 : 300 - Math.floor((i - 10) / 10) * 52):B.encounter.spawnTop+(i%5)*28;
     }
   }
 
@@ -1149,33 +1135,38 @@ export function drawSquad(c, p, alpha) {
 
 ```
 
-## js\save.js
+## js/save.js
 ```
 import { freshProgress, validateProgress } from './progression.js';
 import {BALANCE as B} from './config.js';
 const KEY='obsidian-save-v1';
-export const fresh=()=>({version:2,campaign:freshProgress(),coins:0,stage:1,best:0,top:[],unlocked:false,character:0,shop:{rate:0,magnet:0,damage:0,hp:0,speed:0,luck:0,rerolls:0},settings:{sound:true,manual:false}});
+export const fresh=()=>({version:2,campaign:freshProgress(),endless:null,coins:0,stage:1,best:0,top:[],unlocked:false,character:0,shop:{rate:0,magnet:0,damage:0,hp:0,speed:0,luck:0,rerolls:0},settings:{sound:true,manual:false}});
 function integer(x,min,max){return Number.isSafeInteger(x)&&x>=min&&x<=max;}
 /** 导入严格校验已知字段，不将任意JSON合并进运行对象。 */
 export function validate(x){
  if(!x||![1,2].includes(x.version)||!integer(x.coins,0,Number.MAX_SAFE_INTEGER)||!integer(x.stage,1,15)||!integer(x.best,0,1e12)||!Array.isArray(x.top)||x.top.length>10||!x.top.every(n=>integer(n,0,1e12)))throw Error('存档格式或数值不合法');
  const s=fresh();for(const k of Object.keys(s.shop)){if(['magnet','rate'].includes(k)&&x.shop?.[k]===undefined)continue;if(!integer(x.shop?.[k],0,Number.MAX_SAFE_INTEGER))throw Error('商店数据不合法');s.shop[k]=x.shop[k];}
  if(typeof x.unlocked!=='boolean'||!integer(x.character,0,1)||typeof x.settings?.sound!=='boolean'||typeof x.settings?.manual!=='boolean')throw Error('设置不合法');
- return {...s,campaign:validateProgress(x.campaign),coins:x.coins,stage:x.stage,best:x.best,top:[...x.top].sort((a,b)=>b-a),unlocked:x.unlocked,character:x.unlocked?x.character:0,settings:{sound:x.settings.sound,manual:x.settings.manual}};
+ return {...s,campaign:validateProgress(x.campaign),endless:validateEndless(x.endless),coins:x.coins,stage:Math.min(B.stages,x.stage),best:x.best,top:[...x.top].sort((a,b)=>b-a),unlocked:x.unlocked,character:x.unlocked?x.character:0,settings:{sound:x.settings.sound,manual:x.settings.manual}};
 }
-export const save={data:fresh(),warning:'',load(){try{const raw=localStorage.getItem(KEY);if(raw)this.data=validate(JSON.parse(raw));}catch{this.warning='无法读取本地存档，当前使用临时档。请导入备份。';}return this.data;},write(){try{localStorage.setItem(KEY,JSON.stringify(this.data));this.warning='';return true;}catch{this.warning='本地存储不可用，请导出存档保管。';return false;}},export(){return JSON.stringify(this.data,null,2);},import(text){if(text.length>30000)throw Error('存档文本过长');this.data=validate(JSON.parse(text));this.write();}};
+export const save={data:fresh(),warning:'',load(){try{const raw=localStorage.getItem(KEY);if(raw)this.data=validate(JSON.parse(raw));}catch{this.warning='无法读取本地存档，当前使用临时档。请导入备份。';}return this.data;},write(){try{localStorage.setItem(KEY,JSON.stringify(this.data));this.warning='';return true;}catch{this.warning='本地存储不可用，请导出存档保管。';return false;}},export(){return JSON.stringify(this.data,null,2);},import(text){if(text.length>1000000)throw Error('存档文本过长');this.data=validate(JSON.parse(text));this.write();}};
+
+/** 续玩档只包含有限实体与明确状态，不保存DOM或可执行内容。 */
+function validateEndless(e){if(e==null)return null;if(!e||!Number.isSafeInteger(e.wave)||e.wave<1||!Number.isFinite(e.hp)||e.hp<0||e.hp>120||!Array.isArray(e.enemies)||e.enemies.length>B.enemies)throw Error('无限进度不合法');for(const enemy of e.enemies){if(!Number.isInteger(enemy.type)||enemy.type<0||enemy.type>4||!['x','y','hp','maxHP'].every(k=>Number.isFinite(enemy[k]))||enemy.hp<0||enemy.maxHP<=0)throw Error('无限敌人数据不合法');}for(const k of ['remaining','budget','elapsed','time','score','breachLoss'])if(!Number.isFinite(e[k])||e[k]<0)throw Error('无限计时数据不合法');for(const [key,limit] of [['loot',4],['turrets',100],['rows',2],['drums',4],['hazards',B.challenge.hazards]])if(e[key]!==undefined&&(!Array.isArray(e[key])||e[key].length>limit))throw Error('无限场景不合法');
+for(const row of e.rows||[]){if(!Number.isFinite(row.y)||!Array.isArray(row.gates)||row.gates.length!==1||!row.gates.every(t=>/^-?[0-9]+$/.test(t.value)&&Number.isFinite(t.x)))throw Error('无限门数据不合法');}
+return {...e,progress:validateProgress(e.progress)};}
 
 ```
 
-## js\shop.js
+## js/shop.js
 ```
-export const shopCost=level=>Math.ceil(80*(level+1)**3*1.07**level);
+export const shopCost=level=>Math.ceil(80*(level+1)**3*1.07**level*(level===0?.75:level===1?.85:level===2?.92:1));
 export function permanent(id,level){const growth=level+.06*level*level;return ({rate:.04,damage:.08,magnet:15,speed:.025,hp:.015,rerolls:1}[id]||0)*growth;}
 export function shopBenefit(id,level){if(id==='luck')return `高级补给 ${Math.min(100,18+level)}%（每级+1个百分点，概率最高100%）`;if(id==='hp')return `接触减伤 ${(100*(1-1/(1+permanent(id,level)))).toFixed(1)}%`;if(id==='magnet')return `拾取范围 +${permanent(id,level).toFixed(0)}`;if(id==='rerolls')return `初始备用 +${Math.floor(permanent(id,level))}`;return `${id==='damage'?'伤害':id==='rate'?'射速':'移速'} +${(permanent(id,level)*100).toFixed(1)}%`;}
 
 ```
 
-## js\ui.js
+## js/ui.js
 ```
 import {iconHTML} from './icons.js';
 import {shopCost,shopBenefit} from './shop.js';
@@ -1187,17 +1178,17 @@ import {audio} from './audio.js';
 import {RARITIES, UPGRADES, rankOf, skillStatus, specialization, canChoose} from './upgrades.js';
 export class UI{
  constructor(g){this.g=g;this.overlay=document.querySelector('#overlay');this.hud=document.querySelector('#hud');this.toastNode=document.querySelector('#toast');this.messageTime=0;for(const [k,v]of Object.entries(P))document.documentElement.style.setProperty('--'+k,v);}
- show(html){this.overlay.innerHTML=html;this.g.input?.reset();}
+ show(html){this.hud.classList.toggle('covered',Boolean(html)&&this.g.state!=='playing');this.overlay.innerHTML=html;this.g.input?.reset();}
  button(id,fn){document.getElementById(id)?.addEventListener('click',()=>{audio.unlock();fn();});}
- toast(text){this.toastNode.textContent=text;this.toastNode.classList.add('show');clearTimeout(this.messageTime);this.messageTime=setTimeout(()=>this.toastNode.classList.remove('show'),3300);}
- menu(){this.g.state='menu';this.hud.innerHTML='';const d=save.data;this.show(`<section class="panel menu"><div class="eyebrow">感染公路</div><div class="title"><div class="brand-line"></div><h1>黑曜<br>防线<span style="color:var(--ui)">.</span></h1></div><div class="tag">OBSIDIAN PROTOCOL</div><p>带小队穿过感染公路。从少量僵尸开始逐步变强。闯关强化、等级与经验永久保留，无限增援编队，武器门必须经过才生效；火力越强尸潮越密。</p><div class="row stats"><div class="stat"><small>回收信用点</small><b>${d.coins}</b></div><div class="stat"><small>无限纪录</small><b>${d.best.toLocaleString()}</b></div><div class="stat"><small>已解锁区域</small><b>${String(d.stage).padStart(2,'0')} / 15</b></div></div><div class="row"><select id="stage-select" aria-label="选择关卡">${Array.from({length:d.stage},(_,i)=>`<option value="${i+1}" ${i+1===d.campaign.nextStage?'selected':''}>第 ${String(i+1).padStart(2,'0')} 关${(i+1)%5===0?' · 首领区域':''}</option>`).join('')}</select><button id="character">${d.character?'游隼 / 双联枪':'守望 / 脉冲枪'}</button></div><button class="primary" id="campaign">继续闯关 · LV.${d.campaign.history.length+(d.campaign.pending||0)+1}　→</button><button class="secondary" id="endless">无限协议</button><div class="row"><button id="shop">军械库</button><button id="settings">系统</button><button id="ranks">排行</button></div><p class="instructions">左右拖动横移，队员持续向前开火。<br>门强化武器，必须经过才生效；负收益可绕开。<br>靠近拾取经验；射开强化补给后接取，人数无上限。<br>3关起躲红区、趁核心暴露集火；4关起护甲精英，5关起毒爆投射，7关起双侧轰击留中央缺口。</p><div class="version">LOCAL FIRST · V4.3 · NO SIGNAL REQUIRED</div></section>`);
+ toast(text){this.toastNode.textContent=text;this.toastNode.classList.add('show');clearTimeout(this.messageTime);this.messageTime=setTimeout(()=>this.toastNode.classList.remove('show'),2200);}
+ menu(){this.g.state='menu';this.hud.innerHTML='';const d=save.data;this.show(`<section class="panel menu"><div class="eyebrow">感染公路</div><div class="title"><div class="brand-line"></div><h1>黑曜<br>防线<span style="color:var(--ui)">.</span></h1></div><div class="tag">OBSIDIAN PROTOCOL</div><p>带小队穿过感染公路。从少量僵尸开始逐步变强。闯关强化、等级与经验永久保留，无限增援编队，武器门必须经过才生效；火力越强尸潮越密。</p><div class="row stats"><div class="stat"><small>回收信用点</small><b>${d.coins}</b></div><div class="stat"><small>无限纪录</small><b>${d.best.toLocaleString()}</b></div><div class="stat"><small>已解锁区域</small><b>${String(d.stage).padStart(2,'0')} / 10</b></div></div><div class="row"><select id="stage-select" aria-label="选择关卡">${Array.from({length:d.stage},(_,i)=>`<option value="${i+1}" ${i+1===d.campaign.nextStage?'selected':''}>第 ${String(i+1).padStart(2,'0')} 关${(i+1)%5===0?' · 首领区域':''}</option>`).join('')}</select><button id="character">${d.character?'游隼 / 双联枪':'守望 / 脉冲枪'}</button></div><button class="primary" id="campaign">继续闯关 · LV.${d.campaign.history.length+(d.campaign.pending||0)+1}　→</button><button class="secondary" id="endless">${d.endless?'续战 · 第'+d.endless.wave+'波':'开始无限协议'}</button><div class="row"><button id="shop">军械库</button><button id="settings">系统</button><button id="ranks">排行</button></div><p class="instructions">左右拖动横移，队员持续向前开火。<br>门强化武器，必须经过才生效；负收益可绕开。<br>靠近拾取经验；射开强化补给后接取，人数无上限。<br>3关起躲红区、趁核心暴露集火；4关起护甲精英，5关起毒爆投射，7关起双侧轰击留中央缺口。</p><div class="version">LOCAL FIRST · V4.7 · NO SIGNAL REQUIRED</div></section>`);
  this.button('campaign',()=>this.g.start('campaign',Number(document.querySelector('#stage-select').value)));this.button('endless',()=>this.g.start('endless'));this.button('shop',()=>this.shop());this.button('settings',()=>this.settings());this.button('ranks',()=>this.ranks());this.button('character',()=>{if(!d.unlocked){this.toast('军械库可解锁游隼与双联枪');return;}d.character=1-d.character;save.write();this.menu();});if(save.warning)this.toast(save.warning);}
- setupHUD(){this.hud.innerHTML='<div class="xp"><i id="xp-fill"></i></div><div class="hud-top row"><div><div class="hud-label" id="mode-label"></div><div class="hud-value" id="wave-label"></div><div class="health"><i id="hp-fill"></i></div></div><div class="hud-right"><div class="hud-label">SQUAD / 编队</div><div class="hud-value" id="timer-label"></div><div class="small" id="hp-label"></div></div></div><div class="weapon-readout" id="weapon-readout"></div><div class="inventory"><button id="use-grenade">手雷</button><button id="use-laser">激光</button><button id="use-turret">炮台</button></div><button class="claim" id="claim">强化 · 0</button><button class="pause" id="pause">Ⅱ</button><div class="boss-hud" id="boss-hud"></div><div class="hud-foot"><span id="level-label"></span><span id="perf-label"></span></div>';this.button('pause',()=>this.g.pause());for(const id of ['grenade','laser','turret'])this.button('use-'+id,()=>useItem(this.g,id));this.button('claim',()=>this.g.claiming?this.g.closeUpgrades():this.g.openUpgrades());}
- update(){if(!this.g.p||!document.getElementById('hp-fill'))return;const g=this.g,p=g.p;const ws=weaponStats(p);document.getElementById("weapon-readout").textContent=`单发 ${ws.damage.toFixed(1)} · 每秒 ${ws.rate.toFixed(1)}发`;for(const [id,name] of [["grenade","手雷"],["laser","激光"],["turret","炮台"]]){const btn=document.getElementById("use-"+id),n=p.inventory?.[id]||0;btn.innerHTML=iconHTML(id)+"<span>"+name+" ×"+n+"</span>";btn.disabled=!n;}const claim=document.getElementById('claim');claim.textContent=`强化 · ${p.pendingUpgrades||0}`;claim.style.display='none';claim.disabled=true;claim.classList.toggle('ready',Boolean(p.pendingUpgrades));document.getElementById('xp-fill').style.width=Math.min(100,p.xp/p.nextXP*100)+'%';document.getElementById('hp-fill').style.width=Math.max(0,p.hp/p.maxHP*100)+'%';document.getElementById('hp-label').textContent=`${Math.max(0,Math.ceil(p.hp))} / ${Math.ceil(p.maxHP)} 防线${g.leaks?' · 漏 '+g.leaks:''}${p.wound>0?' · 重创治疗↓':''}`;document.getElementById('mode-label').textContent=g.mode.kind==='campaign'?`SECTOR ${g.mode.stage} / 15`:'ENDLESS PROTOCOL';document.getElementById('mode-label').textContent+=' · 进度 '+Math.min(99,Math.floor(((g.mode.local-1)+(1-g.mode.remaining/Math.max(1,g.mode.budget)))/3*100))+'%';document.getElementById('wave-label').textContent=`WAVE ${String(g.mode.wave).padStart(2,'0')} · ${g.mode.wave>=19?'极危':g.mode.wave>=10?'重装':g.mode.wave>=7?'高危':'警戒'}`;document.getElementById('timer-label').textContent=formatCount(p.squad)+' 人 · '+['手枪','冲锋枪','突击步枪','重机枪'][ws.rate<3?0:ws.rate<12?1:ws.rate<40?2:3];document.getElementById('level-label').textContent=`LV.${p.level} · ${g.kills} 击杀 · 场上 ${g.enemies.count} · ${g.coins} CR`;document.getElementById('perf-label').textContent=`EXP ${Math.floor(p.xp)} / ${p.nextXP}`;const boss=g.enemies.items.find(e=>e.active&&e.type===4);document.getElementById('boss-hud').innerHTML=boss?`${boss.plates ? "重甲 ×"+boss.plates : "暴露核心"} · ${boss.stage>=B.challenge.startStage?(boss.cycle<B.challenge.armorSeconds?'硬化减伤':'核心暴露！'):'缓慢推进'} · 距突破 ${Math.max(0,Math.ceil((B.bossBreachY-boss.y)/B.bossAdvance))}秒<div class="health"><i style="width:${Math.max(0,boss.hp/boss.maxHP*100)}%"></i></div>`:'';}
+ setupHUD(){this.hud.innerHTML='<div class="xp"><i id="xp-fill"></i></div><div class="hud-top row"><div><div class="hud-label" id="mode-label"></div><div class="hud-value" id="wave-label"></div><div class="health"><i id="hp-fill"></i></div></div><div class="hud-right"><div class="hud-label">编队</div><div class="hud-value" id="timer-label"></div><div class="small" id="hp-label"></div></div></div><div class="weapon-readout" id="weapon-readout"></div><div class="inventory"><button id="use-grenade">手雷</button><button id="use-laser">激光</button><button id="use-turret">炮台</button></div><button class="claim" id="claim">强化 · 0</button><button class="pause" id="pause">Ⅱ</button><div class="boss-hud" id="boss-hud"></div><div class="hud-foot"><span id="level-label"></span><span id="perf-label"></span></div>';this.button('pause',()=>this.g.pause());for(const id of ['grenade','laser','turret'])this.button('use-'+id,()=>useItem(this.g,id));this.button('claim',()=>this.g.claiming?this.g.closeUpgrades():this.g.openUpgrades());}
+ update(){if(!this.g.p||!document.getElementById('hp-fill'))return;const g=this.g,p=g.p;const ws=weaponStats(p);document.getElementById("weapon-readout").textContent=`伤害 ${ws.damage.toFixed(1)}　射速 ${ws.rate.toFixed(1)}/秒`;for(const [id,name] of [["grenade","手雷"],["laser","激光"],["turret","炮台"]]){const btn=document.getElementById("use-"+id),n=p.inventory?.[id]||0;btn.innerHTML=iconHTML(id)+"<span>"+name+" ×"+n+"</span>";btn.disabled=!n;}const claim=document.getElementById('claim');claim.textContent=`强化 · ${p.pendingUpgrades||0}`;claim.style.display='none';claim.disabled=true;claim.classList.toggle('ready',Boolean(p.pendingUpgrades));document.getElementById('xp-fill').style.width=Math.min(100,p.xp/p.nextXP*100)+'%';document.getElementById('hp-fill').style.width=Math.max(0,p.hp/p.maxHP*100)+'%';document.getElementById('hp-label').textContent=`${Math.max(0,Math.ceil(p.hp))} / ${Math.ceil(p.maxHP)} 防线${g.leaks?' · 漏 '+g.leaks:''}${p.wound>0?' · 重创治疗↓':''}`;document.getElementById('mode-label').textContent=g.mode.kind==='campaign'?`第 ${g.mode.stage} / 10 关`:'无限模式';document.getElementById('mode-label').textContent+=' · '+Math.min(99,Math.floor(((g.mode.local-1)+(1-g.mode.remaining/Math.max(1,g.mode.budget)))/3*100))+'%';document.getElementById('wave-label').textContent=`第 ${g.mode.wave} 波`;document.getElementById('timer-label').textContent=formatCount(p.squad)+' 人';document.getElementById('level-label').textContent=`LV.${p.level} · 本次 ${g.coins} CR`;document.getElementById('perf-label').textContent=`EXP ${Math.floor(p.xp)} / ${p.nextXP}`;const boss=g.enemies.items.find(e=>e.active&&e.type===4);document.getElementById('boss-hud').innerHTML=boss?`${boss.plates ? "重甲 ×"+boss.plates : "暴露核心"} · ${boss.stage>=B.challenge.startStage?(boss.cycle<B.challenge.armorSeconds?'硬化减伤':'核心暴露！'):'缓慢推进'} · 距突破 ${Math.max(0,Math.ceil((B.bossBreachY-boss.y)/B.bossAdvance))}秒<div class="health"><i style="width:${Math.max(0,boss.hp/boss.maxHP*100)}%"></i></div>`:'';}
  upgrade(cards){this.overlay.innerHTML=`<section class="panel claim-panel"><div class="eyebrow">NEURAL UPGRADE / LV.${this.g.p.level}</div><h2>领取强化 · 待领 ${this.g.p.pendingUpgrades}</h2><p>战斗继续 · 下方拖动照常移动 · 三选一${this.g.mode.kind==='campaign'?' · 强化跨关保留':''}</p><div class="cards">${cards.map((u,i)=>{const r=RARITIES[u.rarity];return `<button class="card" id="pick-${i}" style="border-color:${r.color};border-width:${r.width}px;border-left-width:${r.width+3}px"><em style="color:${r.color}">${r.name} · ${u.group}</em><em class="corner" style="color:${r.color}">${'◆'.repeat(u.rarity+1)}</em><strong>${u.name}</strong><span>${u.desc}</span><small class="skill-meta">${skillStatus(this.g.p,u)}</small></button>`;}).join('')}</div><div class="row"><button id="claim-all" ${cards.every(u=>u.group==='专精')?'disabled':''}>批量领取（优先进阶）</button><button id="claim-close">收起</button></div><button class="secondary" id="reroll" ${this.g.p.rerolls<=0||cards.every(u=>u.group==='专精')?'disabled':''}>刷新协议 · 剩余 ${this.g.p.rerolls}</button></section>`;cards.forEach((u,i)=>this.button('pick-'+i,()=>this.g.choose(u)));this.button('reroll',()=>this.g.reroll());this.button('claim-all',()=>this.g.claimAll());this.button('claim-close',()=>this.g.closeUpgrades());}
- paused(){this.show('<section class="panel menu"><div class="eyebrow">CONNECTION HELD</div><h2>行动暂停</h2><p>计时与战斗已冻结。</p><button class="primary" id="resume">继续行动</button><button id="build">技能路线 / 已选强化</button><button id="pause-settings">设置 / 存档</button><button id="abandon">结束本局并结算</button></section>');this.button('resume',()=>this.g.resume());this.button('build',()=>this.build());this.button('pause-settings',()=>this.settings(true));this.button('abandon',()=>this.g.finish(false));}
+ paused(){this.show('<section class="panel menu"><div class="eyebrow">CONNECTION HELD</div><h2>行动暂停</h2><p>计时与战斗已冻结。</p><button class="primary" id="resume">继续行动</button><button id="build">技能路线 / 已选强化</button><button id="pause-settings">设置 / 存档</button><button id="abandon">保存结算 / 返回基地</button></section>');this.button('resume',()=>this.g.resume());this.button('build',()=>this.build());this.button('pause-settings',()=>this.settings(true));this.button('abandon',()=>{if(this.g.mode.kind==='endless')this.g.exitEndless();else{this.g.finish(false);this.menu();}});}
  build(){const p=this.g.p;this.show(`<section class="panel menu"><div class="eyebrow">BUILD / LV.${p.level}</div><h2>技能路线</h2><p>5级选择一种专精。强化满足前置后进入升级卡池；三种专精互斥，选择后跨关保留。</p><div class="skill-list">${UPGRADES.filter(u=>u.group!=='基础'||rankOf(p,u.id)>0).map(u=>`<article class="skill-entry ${canChoose(p,u)?'available':''}"><strong>${u.name} · ${rankOf(p,u.id)}级</strong><p>${u.desc}</p><small>${skillStatus(p,u)} · ${rankOf(p,u.id)>=u.max?'已满级':canChoose(p,u)?'可在升级中选择':'未满足前置'}</small></article>`).join('')}</div><button id="back">返回暂停</button></section>`);this.button('back',()=>this.paused());}
- result(win){const g=this.g;this.show(`<section class="panel menu"><div class="eyebrow">MISSION ${win?'COMPLETE':'TERMINATED'}</div><h2>${win?'区域已净化':'信号已中断'}</h2><div class="end-score">${g.score.toLocaleString()}</div><div class="row stats"><div class="stat"><small>消灭感染体</small><b>${g.kills}</b></div><div class="stat"><small>回收信用点</small><b>+${g.coins}</b></div><div class="stat"><small>生存时间</small><b>${Math.floor(g.time)}s</b></div></div><p>${win&&g.mode.stage===15?'你已突破全部15个区域。无限协议等待你的挑战。':'等级、经验、待领次数与已选强化已保存。通关编队继承到下一关；失败从上次通关编队重试。'}</p><button class="primary" id="again">${win&&g.mode.stage<15?'进入下一区域':'再次行动'}</button><button id="home">返回基地</button></section>`);this.button('again',()=>g.start(g.mode.kind,win?Math.min(15,g.mode.stage+1):g.mode.stage));this.button('home',()=>this.menu());}
+ result(win){const g=this.g;this.show(`<section class="panel menu"><div class="eyebrow">MISSION ${win?'COMPLETE':'TERMINATED'}</div><h2>${win?'区域已净化':'信号已中断'}</h2><div class="end-score">${g.score.toLocaleString()}</div><div class="row stats"><div class="stat"><small>消灭感染体</small><b>${g.kills}</b></div><div class="stat"><small>回收信用点</small><b>+${g.coins}</b></div><div class="stat"><small>生存时间</small><b>${Math.floor(g.time)}s</b></div></div><p>${win&&g.mode.stage===10?'你已突破全部10个区域。无限协议等待你的挑战。':'闯关成长保留。无限主动退出保存当前波次、敌人血量和编队；返回商店升级后可续战。无限战败则重新开始。'}</p><button class="primary" id="again">${win&&g.mode.stage<10?'进入下一区域':'再次行动'}</button><button id="home">返回基地</button></section>`);this.button('again',()=>g.start(g.mode.kind,win?Math.min(10,g.mode.stage+1):g.mode.stage));this.button('home',()=>this.menu());}
  shop(){const d=save.data,names={rate:'枪机研发 · 永久射速',magnet:'拾取训练 · 经验拾取范围 +15',damage:'弹芯校准 · 伤害 +8%',hp:'防护训练 · 接触减伤 +1.5%',speed:'机动强化 · 移速 +2.5%',luck:'幸运协议 · 幸运 +2.5%'};this.show(`<section class="panel menu"><div class="eyebrow">ARMORY / PERMANENT</div><h2>基地研发中心</h2><p>等级无游戏上限，属性收益递增，价格加速增长。幸运每级仅+1个百分点；极稀有增援独立抽取。</p><p>可用信用点　<span style="color:var(--gold)">${d.coins}</span></p><div class="shop-list">${Object.keys(names).map(k=>{const lv=d.shop[k],cost=shopCost(lv);return `<button class="shop-item" id="buy-${k}" ${!Number.isSafeInteger(cost)||d.coins<cost?'disabled':''}><span>${iconHTML(k)}${names[k].split(' · ')[0]}<br><small>LV.${lv} · ${shopBenefit(k,lv)}<br>下级：${shopBenefit(k,lv+1)}</small></span><span>${Number.isFinite(cost)?cost.toLocaleString():'超出数值范围'} CR</span></button>`;}).join('')}<button id="unlock" class="shop-item" ${d.unlocked||d.coins<B.unlockCost?'disabled':''}><span>游隼 + 双联枪<br><small>双发、射速快、机动强，生命较低</small></span><span>${d.unlocked?'已解锁':B.unlockCost+' CR'}</span></button></div><button id="back">返回基地</button></section>`);for(const k of Object.keys(names))this.button('buy-'+k,()=>{const cost=shopCost(d.shop[k]);if(Number.isSafeInteger(cost)&&d.coins>=cost){d.coins-=cost;d.shop[k]++;save.write();this.shop();}});this.button('unlock',()=>{if(!d.unlocked&&d.coins>=B.unlockCost){d.coins-=B.unlockCost;d.unlocked=true;save.write();this.shop();}});this.button('back',()=>this.menu());}
  settings(paused=false){const d=save.data;this.show(`<section class="panel menu"><div class="eyebrow">SYSTEM / LOCAL STORAGE</div><h2>系统设置</h2><button id="sound">合成音效：${d.settings.sound?'开':'关'}</button><p class="small">导出文本可复制到本地笔记。导入会替换永久进度；战斗中仅允许导出。</p><textarea id="save-text" spellcheck="false" aria-label="存档文本" placeholder="点击导出，或在此粘贴备份"></textarea><div class="row"><button id="export">导出文本</button><button id="import" ${paused?'disabled':''}>导入存档</button></div><div id="save-notice" class="notice"></div><button id="back">${paused?'返回暂停界面':'返回基地'}</button></section>`);this.button('sound',()=>{d.settings.sound=!d.settings.sound;save.write();this.settings(paused);});this.button('export',()=>{const t=document.querySelector('#save-text');t.value=save.export();t.focus();t.select();document.querySelector('#save-notice').textContent='已生成存档。长按文本复制，或使用 Ctrl+C。';});this.button('import',()=>{if(paused)return;try{save.import(document.querySelector('#save-text').value);document.querySelector('#save-notice').textContent=save.warning||'导入成功';}catch(e){document.querySelector('#save-notice').textContent=e.message;}});this.button('back',()=>paused?this.paused():this.menu());}
  ranks(){this.show(`<section class="panel menu"><div class="eyebrow">LOCAL RECORDS / TOP 10</div><h2>无限协议排行</h2><div class="leaderboard">${Array.from({length:10},(_,i)=>`<div class="rank">${String(i+1).padStart(2,'0')}　${save.data.top[i]?.toLocaleString()??'—'}</div>`).join('')}</div><button id="back">返回基地</button></section>`);this.button('back',()=>this.menu());}
@@ -1205,7 +1196,7 @@ export class UI{
 
 ```
 
-## js\upgrades.js
+## js/upgrades.js
 ```
 import {BALANCE as B,PALETTE as P} from './config.js';
 export const RARITIES=[{name:'标准',color:P.text,width:1},{name:'稀有',color:P.blue,width:2},{name:'史诗',color:P.purple,width:3},{name:'传说',color:P.gold,width:4}];
@@ -1237,7 +1228,7 @@ export const SYNERGIES=[];
 
 ```
 
-## js\utils.js
+## js/utils.js
 ```
 export const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
 export const lerp=(a,b,t)=>a+(b-a)*t;
@@ -1262,7 +1253,7 @@ export class Grid{
 
 ```
 
-## css\style.css
+## css/style.css
 ```
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none;touch-action:none}html,body{margin:0;width:100%;height:100%;overflow:hidden;overscroll-behavior:none;background:var(--bg,#080916);color:var(--text,#eef5ff);font-family:system-ui,-apple-system,"Segoe UI",sans-serif}#viewport{position:fixed;inset:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);display:flex;align-items:center;justify-content:center;overflow:hidden}#stage{position:absolute;width:720px;height:1280px;transform-origin:center center;overflow:hidden;background:var(--bg)}canvas,#hud,#overlay{position:absolute;inset:0;width:100%;height:100%}#hud{pointer-events:none}#overlay{display:flex;align-items:center;justify-content:center;padding:42px;pointer-events:none}#overlay>*{pointer-events:auto}button,select,textarea{font:inherit}button{color:var(--text);background:var(--panel);border:1px solid var(--grid);border-radius:5px;min-height:58px;padding:13px 22px;font-weight:700;cursor:pointer;letter-spacing:1px}button:active{transform:scale(.98);background:var(--grid)}button:disabled{opacity:.35;cursor:default}.primary{background:var(--ui);border-color:var(--ui);color:var(--bg);box-shadow:0 0 28px color-mix(in srgb,var(--ui) 18%,transparent)}.secondary{border-color:var(--ui);color:var(--ui)}.panel{width:100%;padding:34px;background:var(--panel);background-image:var(--panel-texture);border:1px solid var(--grid);border-top:2px solid var(--ui);border-radius:10px;box-shadow:0 24px 80px var(--bg)}h1,h2,p{margin:0}h1{font-size:72px;line-height:1.12;letter-spacing:6px;font-weight:900}h2{font-size:34px;letter-spacing:3px}p{line-height:1.7;color:var(--secondary);font-size:20px}.eyebrow{font:14px monospace;letter-spacing:5px;color:var(--ui);margin-bottom:18px}.menu{display:flex;flex-direction:column;gap:19px}.menu .title{padding:10px 0 12px}.tag{color:var(--ui);font:16px monospace;letter-spacing:3px}.row{display:flex;gap:12px;align-items:center;justify-content:space-between}.row>*{flex:1}.stats{padding:20px 0;border-top:1px solid var(--grid);border-bottom:1px solid var(--grid)}.stat small{display:block;color:var(--secondary);font-size:15px;margin-bottom:8px}.stat b{font:27px monospace}.stat{flex:1}.muted{color:var(--secondary);font-size:17px}.small{font-size:16px}.cards{display:grid;gap:15px;margin:25px 0}.card{text-align:left;position:relative;padding:23px 25px;min-height:150px;border-left-width:6px}.card strong{display:block;font-size:28px;margin:10px 0}.card span{font-size:18px;font-weight:400;color:var(--secondary);letter-spacing:0}.card em{font-size:14px;font-style:normal;letter-spacing:3px}.card .corner{position:absolute;right:18px;top:16px}.shop-list{display:grid;gap:9px;margin:18px 0}.shop-item{min-height:69px;text-align:left;font-size:19px;display:flex;justify-content:space-between;align-items:center}.shop-item small{font-size:14px;color:var(--secondary)}.hud-top{position:absolute;top:28px;left:28px;right:28px}.hud-label{font:15px monospace;color:var(--secondary);letter-spacing:3px}.hud-value{font:26px monospace;margin-top:8px}.hud-right{text-align:right}.pause{position:absolute;right:28px;top:102px;pointer-events:auto;min-height:48px;font-size:18px}.health{height:6px;background:var(--grid);margin-top:14px}.health i{display:block;height:100%;background:var(--hp)}.xp{position:absolute;left:0;right:0;top:0;height:4px;background:var(--grid)}.xp i{height:100%;display:block;background:var(--ui)}.hud-foot{position:absolute;bottom:25px;left:30px;right:30px;font:14px monospace;color:var(--secondary);display:flex;justify-content:space-between}.boss-hud{position:absolute;left:170px;right:170px;top:130px;text-align:center;font-size:15px;color:var(--boss)}.boss-hud .health i{background:var(--boss)}#toast{position:absolute;bottom:60px;left:45px;right:45px;text-align:center;color:var(--ui);font-size:21px;letter-spacing:2px;pointer-events:none;opacity:0;transition:opacity .2s;background:var(--panel);padding:16px;border:1px solid var(--grid);border-radius:4px}#toast.show{opacity:1}#offline{position:absolute;bottom:6px;width:100%;text-align:center;font:11px monospace;color:var(--secondary);pointer-events:none}textarea{width:100%;height:240px;background:var(--bg);color:var(--text);border:1px solid var(--grid);padding:15px;font:15px monospace;user-select:text;-webkit-user-select:text;touch-action:auto;resize:none;margin:18px 0}.notice{min-height:30px;color:var(--gold);font-size:17px}.leaderboard{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:25px 0}.rank{background:var(--bg);padding:12px;font:20px monospace;color:var(--secondary)}select{width:100%;padding:13px;background:var(--bg);color:var(--text);border:1px solid var(--grid);font-size:20px}.instructions{padding:14px 0 0;font-size:17px}.brand-line{height:2px;width:78px;background:var(--ui);margin-bottom:25px}.version{font:12px monospace;color:var(--secondary);letter-spacing:3px}.end-score{font:70px monospace;color:var(--ui);margin:22px 0}.settings-line{margin:17px 0}button:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid var(--gold);outline-offset:3px}
 
@@ -1302,12 +1293,23 @@ h1{font-size:76px;letter-spacing:9px}.eyebrow{color:var(--gold);font-size:15px}.
 
 .inventory .item-icon{width:44px;height:44px;float:none;display:block;margin:0 auto 5px}.inventory button{padding:8px}.inventory span{font-size:18px}
 
+/* 4.6: edge-only combat HUD. Keep the center lane free of persistent panels. */
+#hud.covered{visibility:hidden}
+.hud-top{top:10px;left:16px;right:calc(32px + var(--touch-min,88px));height:116px;padding:10px 14px;align-items:flex-start;border-radius:12px}
+.hud-top .hud-label{font-size:17px;letter-spacing:0;white-space:nowrap}.hud-top .hud-value{font-size:25px;margin-top:5px}.hud-top .health{margin-top:8px;height:7px}.hud-right .small{font-size:17px;line-height:1.4;white-space:nowrap}
+.weapon-readout{top:93px;left:32px;right:calc(46px + var(--touch-min,88px));padding:0;height:24px;background:none;text-align:left;font:18px system-ui;letter-spacing:.5px;overflow:hidden;white-space:nowrap}
+.pause{top:10px;right:16px;padding:10px;border-radius:12px}
+.boss-hud{top:135px;left:100px;right:100px;font-size:16px;padding:5px 10px;background:var(--panel);border-radius:8px}.boss-hud .health{height:5px;margin-top:5px}
+.inventory{bottom:34px;left:100px;right:100px;gap:14px}.inventory button{min-height:max(72px,var(--touch-min,72px));padding:6px;border-width:1px;border-radius:12px;display:flex;align-items:center;justify-content:center;gap:8px}.inventory .item-icon{width:34px;height:34px;margin:0;display:inline-block}.inventory span{font-size:18px;white-space:nowrap}
+.hud-foot{bottom:5px;left:25px;right:25px;padding:4px 8px;border:0;border-radius:0;background:none;font:15px system-ui;white-space:nowrap}
+#toast{bottom:auto;top:192px;left:45px;right:45px;padding:8px 12px;font-size:17px;line-height:1.4;max-height:66px;overflow:hidden;border-left-width:3px;opacity:0}#toast.show{opacity:.95}
+
 ```
 
-## android-offline\AndroidManifest.xml
+## android-offline/AndroidManifest.xml
 ```
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.obsidian.protocol" android:versionCode="40300" android:versionName="4.3.0">
+    package="com.obsidian.protocol" android:versionCode="40700" android:versionName="4.7.0">
     <uses-sdk android:minSdkVersion="26" android:targetSdkVersion="35"/>
     <application android:label="黑曜防线" android:icon="@drawable/launcher"
         android:hardwareAccelerated="true" android:allowBackup="false"
@@ -1326,7 +1328,7 @@ h1{font-size:76px;letter-spacing:9px}.eyebrow{color:var(--gold);font-size:15px}.
 
 ```
 
-## android-offline\GameActivity.java
+## android-offline/GameActivity.java
 ```
 package com.obsidian.protocol;
 
@@ -1491,7 +1493,7 @@ public final class GameActivity extends Activity {
 
 ```
 
-## tools\build_android.py
+## tools/build_android.py
 ```
 """Build the offline Android test APK with JDK 17 and Android SDK 35, without Gradle."""
 import hashlib
@@ -1569,7 +1571,7 @@ def main():
             for p in (ROOT / "www").rglob("*"):
                 if p.is_file():
                     assert apk.read("assets/www/" + p.relative_to(ROOT / "www").as_posix()) == p.read_bytes()
-        target = out / "Obsidian-Protocol-4.3.0-Android.apk"
+        target = out / "Obsidian-Protocol-4.7.0-Android.apk"
         shutil.copyfile(signed, target)
         print(target, target.stat().st_size, "bytes", hashlib.sha256(target.read_bytes()).hexdigest())
 
@@ -1578,7 +1580,31 @@ if __name__ == "__main__":
 
 ```
 
-## tools\generate_icons.py
+## tools/build_web.py
+```
+"""Emit a double-click, offline HTML demo with the same production ES modules."""
+from pathlib import Path
+import json,re,base64
+root=Path(__file__).resolve().parents[1]
+modules={}
+for p in (root/'js').glob('*.js'):
+ code=p.read_text(encoding='utf-8')
+ code=re.sub(r"from\s*(['\"])\./([^'\"]+)\.js\1",lambda m:"from 'obsidian/"+m[2]+"'",code)
+ if p.stem=='main':
+  start=code.index("if(location.hostname===")
+  code=code[:start]+"status.textContent='离线试玩 · 鼠标拖动 / A D / 左右方向键';\n"
+ modules['obsidian/'+p.stem]=code
+html=(root/'index.html').read_text(encoding='utf-8')
+html=html.replace('<link rel="manifest" href="./manifest.json">','').replace('<link rel="stylesheet" href="./css/style.css">','<style>'+(root/'css/style.css').read_text(encoding='utf-8')+'</style>')
+html=html.replace('./icons/icon-192.png','data:image/png;base64,'+base64.b64encode((root/'icons/icon-192.png').read_bytes()).decode())
+data=json.dumps(modules,ensure_ascii=False).replace('</','<\\/')
+boot='<script>const modules='+data+';const imports={};for(const [name,code]of Object.entries(modules))imports[name]=URL.createObjectURL(new Blob([code],{type:"text/javascript"}));const map=document.createElement("script");map.type="importmap";map.textContent=JSON.stringify({imports});document.head.appendChild(map);import("obsidian/main");</script>'
+html=html.replace('<script type="module" src="./js/main.js"></script>',boot)
+out=root/'dist'/'Obsidian-Protocol-3.8.0-Web.html';out.write_text(html,encoding='utf-8');print(out)
+
+```
+
+## tools/generate_icons.py
 ```
 """纯 Python 标准库绘制本地图标；PNG 无需任何第三方依赖。"""
 import json, re, struct, zlib
@@ -1616,7 +1642,7 @@ print('Generated local 192px and 512px PNG icons.')
 
 ```
 
-## tools\prepare-apk.mjs
+## tools/prepare-apk.mjs
 ```
 import {mkdir,copyFile,readdir,writeFile} from 'node:fs/promises';
 import {fileURLToPath} from 'node:url';
@@ -1632,7 +1658,7 @@ console.log('Prepared www and capacitor.config.json. No bundler required.');
 
 ```
 
-## tests\balance.mjs
+## tests/balance.mjs
 ```
 import assert from 'node:assert/strict';
 import {BALANCE as B} from '../js/config.js';
@@ -1738,7 +1764,27 @@ console.log('PASS: real automatic volleys charge a division gate to ×2 and grow
 
 ```
 
-## tests\browser.mjs
+## tests/benchmark47.mjs
+```
+import {weaponStats} from '../js/combat.js';
+import assert from 'node:assert/strict';
+import {Game,Input} from '../js/game.js';
+import {save,fresh} from '../js/save.js';
+import {initEntities,updateEntities,hit} from '../js/entities.js';
+import {Particles} from '../js/particles.js';
+import {updateLoot,unlockHits,useItem} from '../js/loot.js';
+import {BALANCE as B} from '../js/config.js';
+let seed=Number(process.env.SEED||902);Math.random=()=> (seed=(Math.imul(seed,1664525)+1013904223)>>>0)/4294967296;
+globalThis.localStorage={setItem(){},getItem(){return null;}};
+function game(){const g=Object.create(Game.prototype);g.fx=new Particles();g.ui=new Proxy({}, {get:()=>()=>{}});g.input={reset(){},move(){}};initEntities(g);return g;}
+save.data=fresh();const sim=game();sim.input.move=(p,dt)=>{const threats=sim.enemies.items.filter(e=>e.active).sort((a,b)=>b.y-a.y),urgent=threats.find(e=>e.type!==4&&e.y>650),gate=sim.runway.rows[0]?.gates[0],loot=sim.loot.find(o=>o.y>350),zones=sim.hazards.items.filter(h=>h.active);let x=urgent?.x??(loot?.x??(gate?.x??threats[0]?.x??360));if(zones.some(h=>Math.abs(h.x-x)<h.width+50)){x=[160,360,560].find(v=>zones.every(h=>Math.abs(h.x-v)>h.width+60))??360;}p.x=x;};
+const report=[];for(let stage=1;stage<=10;stage++){sim.start('campaign',stage);let peak=0,sum=0,samples=0,peakGems=0;const born=new Map(),lifetimes=[];const orig=sim.spawnEnemy;sim.spawnEnemy=function(type){const e=orig.call(this,type);if(e)born.set(e.id,{e,t:this.time});return e;};for(let tick=0;tick<600*60&&sim.state==='playing';tick++){sim.time+=1/60;sim.mode.update(sim,1/60);if(sim.state==='playing')updateEntities(sim,1/60);sim.fx.update(1/60);peak=Math.max(peak,sim.enemies.count);peakGems=Math.max(peakGems,sim.gems.count);sum+=sim.enemies.count;samples++;for(const [id,o] of born)if(!o.e.active||o.e.id!==id){lifetimes.push(sim.time-o.t);born.delete(id);}if(tick%60===0&&sim.enemies.count>=3)for(const id of ['grenade','turret','laser'])useItem(sim,id);}sim.spawnEnemy=orig;const row={...weaponStats(sim.p),peak,average:Math.round(sum/samples*10)/10,peakGems,meanLife:Math.round(lifetimes.reduce((a,b)=>a+b,0)/Math.max(1,lifetimes.length)*100)/100,stage,seconds:Math.round(sim.time),hp:sim.p.hp,kills:sim.kills,shots:sim.p.shots,squad:String(sim.p.squad),next:save.data.campaign.nextStage};report.push(row);console.log(row);if(sim.p.hp<=0)break;}
+if(process.env.REPORT){const {writeFileSync}=await import('node:fs');writeFileSync(process.env.REPORT,JSON.stringify(report,null,2));}
+assert.equal(report.length,10);assert.ok(report.every(r=>r.hp>0));
+
+```
+
+## tests/browser.mjs
 ```
 import {writeFile,mkdir} from 'node:fs/promises';
 import assert from 'node:assert/strict';
@@ -1854,7 +1900,7 @@ try{
 
 ```
 
-## tests\campaign.mjs
+## tests/campaign.mjs
 ```
 import assert from 'node:assert/strict';
 import {Game} from '../js/game.js';
@@ -1896,7 +1942,7 @@ console.log('PASS: three-stage campaign using production upgrade choices, saved 
 
 ```
 
-## tests\challenge.mjs
+## tests/challenge.mjs
 ```
 import assert from 'node:assert/strict';
 import {BALANCE as B} from '../js/config.js';
@@ -1932,7 +1978,7 @@ const dual=game(7),db=spawnEnemy(dual,4);db.strikes=1;db.strikeTimer=0;updateEne
 
 ```
 
-## tests\logic.mjs
+## tests/logic.mjs
 ```
 import assert from 'node:assert/strict';
 import {Pool,Grid} from '../js/utils.js';
@@ -1952,7 +1998,16 @@ console.log('PASS: pool limits/reuse, grid, save validation, 36 upgrades, 3 syne
 
 ```
 
-## tests\progression.mjs
+## tests/playthrough47.mjs
+```
+import {updateEntities} from '../js/entities.js';
+import {useItem} from '../js/loot.js';
+export function control(g){g.input.move=(p,dt)=>{const threats=g.enemies.items.filter(e=>e.active).sort((a,b)=>b.y-a.y),urgent=threats.find(e=>e.type!==4&&e.y>650),gate=g.runway.rows[0]?.gates[0],loot=g.loot.find(o=>o.y>350),zones=g.hazards.items.filter(h=>h.active);let x=urgent?.x??(loot?.x??(gate?.x??threats[0]?.x??360));if(zones.some(h=>Math.abs(h.x-x)<h.width+50)){x=[160,360,560].find(v=>zones.every(h=>Math.abs(h.x-v)>h.width+60))??360;}p.x=x;};}
+export function step(g,tick){g.time+=1/60;g.mode.update(g,1/60);if(g.state==='playing')updateEntities(g,1/60);g.fx.update(1/60);g.shake*=Math.exp(-8/60);if(tick%60===0&&g.enemies.count>=3)for(const id of ['grenade','turret','laser'])useItem(g,id);}
+
+```
+
+## tests/progression.mjs
 ```
 import assert from 'node:assert/strict';
 import { Game } from '../js/game.js';
@@ -2013,7 +2068,7 @@ console.log('PASS: silent multi-level gain, pointer preserved, pending claims su
 
 ```
 
-## tests\results.json
+## tests/results.json
 ```
 {
   "version": "3.1.0",
@@ -2082,7 +2137,7 @@ console.log('PASS: silent multi-level gain, pointer preserved, pending claims su
 }
 ```
 
-## tests\revision38.mjs
+## tests/revision38.mjs
 ```
 import assert from 'node:assert/strict';
 import {Game} from '../js/game.js';
@@ -2111,7 +2166,7 @@ console.log('PASS: uncapped signed gates, auto settlement off-lane, exact 12-lea
 
 ```
 
-## tests\revision40.mjs
+## tests/revision40.mjs
 ```
 import assert from 'node:assert/strict';
 import {player,initEntities,updateEntities,spawnEnemy,hit} from '../js/entities.js';
@@ -2133,7 +2188,7 @@ console.log('PASS: 1–5 people, pistol, proximity XP, optional weapon gate, sho
 
 ```
 
-## tests\revision41.mjs
+## tests/revision41.mjs
 ```
 import assert from 'node:assert/strict';
 import {useItem,unlockHits,updateLoot,weaponStats} from '../js/loot.js';
@@ -2149,7 +2204,7 @@ console.log('PASS: rarity hit costs, inventory not auto-use, single-use, visible
 
 ```
 
-## tests\revision42.mjs
+## tests/revision42.mjs
 ```
 import assert from 'node:assert/strict';
 import {normalizeSquad,makeGate,Runway} from '../js/runway.js';
@@ -2169,7 +2224,7 @@ console.log('PASS: additive-only gates, uncapped weapon/army/shop, rising margin
 
 ```
 
-## tests\revision43.mjs
+## tests/revision43.mjs
 ```
 import assert from 'node:assert/strict';
 import {player,initEntities,spawnEnemy,updateEntities} from '../js/entities.js';
@@ -2188,7 +2243,7 @@ applyGate(g.p,{stat:'damage',value:20n});assert.deepEqual(weaponStats(g.p),{dama
 g.p.gateRate=9999;assert.equal(weaponStats(g.p).rate,240);for(let i=0;i<50;i++)assert.equal(makeGate(i,1n,Math.random,g.p).stat,'damage');
 const basic=game().p;assert.equal(unlockHits('grenade',basic),50);basic.gateRate=49;assert.equal(unlockHits('grenade',basic),200);
 g.loot=[{x:192,y:500,hits:200,id:'grenade'}];const bulk={x:192,y:495,py:510,mass:250n,active:true};hitLoot(g,bulk);assert.equal(g.loot[0].hits,0);assert.equal(bulk.mass,50n);assert.equal(bulk.active,true,'溢出弹数继续向前');
-for(const [rate,damage,aoe] of [[1,10,false],[50,50,false],[50,50,true],[240,1000,true]]){const sim=game();sim.p.gateRate=rate-1;sim.p.gateDamage=damage-10;sim.p.explosive=aoe?1:0;sim.mode.next(sim);sim.mode.spawnPack(sim);const xs=new Set(sim.enemies.items.filter(e=>e.active).map(e=>e.x));assert.equal(xs.size>1,aoe);console.log({rate,damage,aoe,profile:combatProfile(sim.p),enemies:sim.enemies.count,hp:sim.enemies.items.find(e=>e.active)?.hp});}
+for(const [rate,damage,aoe] of [[1,10,false],[50,50,false],[50,50,true],[240,1000,true]]){const sim=game();sim.p.gateRate=rate-1;sim.p.gateDamage=damage-10;sim.p.explosive=aoe?1:0;sim.mode.next(sim);sim.mode.spawnPack(sim);const xs=new Set(sim.enemies.items.filter(e=>e.active).map(e=>e.x));assert.equal(xs.size>1,aoe||combatProfile(sim.p).power>=80);console.log({rate,damage,aoe,profile:combatProfile(sim.p),enemies:sim.enemies.count,hp:sim.enemies.items.find(e=>e.active)?.hp});}
 // 高频射击10秒实际发射总弹数，不因可视示踪弹预算丢失。
 for(const rate of [1,50,240]){const sim=game();sim.p.gateRate=rate-1;let emitted=0n;for(let i=0;i<600;i++){sim.time+=1/60;sim.bullets.clear();updateEntities(sim,1/60);for(const b of sim.bullets.items)if(b.active)emitted+=b.mass;sim.fx.update(1/60);}assert.ok(Math.abs(Number(emitted)-rate*10)<=Math.ceil(rate*.07),`${rate}: ${emitted}`);console.log({rate,shots10s:String(emitted)});}
 console.log('PASS exact impact gates, separated stats, cap-only-damage gates, dynamic loot, surplus bullets, formations, firing conservation');
@@ -2198,7 +2253,97 @@ for(const [rate,damage,aoe,stage] of [[1,10,false,1],[50,50,false,3],[50,50,true
 
 ```
 
-## tests\runway.mjs
+## tests/revision44.mjs
+```
+import assert from 'node:assert/strict';
+import {Game} from '../js/game.js';
+import {save,fresh,validate} from '../js/save.js';
+import {initEntities} from '../js/entities.js';
+import {Particles} from '../js/particles.js';
+import {BALANCE as B} from '../js/config.js';
+import {weaponStats} from '../js/combat.js';
+import {updateLoot} from '../js/loot.js';
+const storage=new Map();globalThis.localStorage={setItem:(k,v)=>storage.set(k,v),getItem:k=>storage.get(k)??null};
+function game(){const g=Object.create(Game.prototype);g.fx=new Particles();g.input={reset(){},move(){}};g.ui=new Proxy({}, {get:()=>()=>{}});initEntities(g);return g;}
+save.data=fresh();const g=game();g.start('campaign',1);assert.equal(B.stages,10);assert.equal(g.runway.rows[0].gates[0].stat,'rate');assert.ok(g.runway.rows[0].gates[0].value>0n);const before=g.lootClock;g.p.xp=500;g.levelUp();assert.equal(g.lootClock,before,'升级不得催生补给');
+g.start('endless');g.p.hp=70;g.p.breachLoss=30;g.p.inventory={grenade:2};g.p.gateDamage=50;g.p.gateRate=20;g.coins=123;g.mode.wave=8;g.mode.remaining=20;g.mode.budget=80;g.p.level=9;const e=g.spawnEnemy(2);e.hp/=2;const ehp=e.hp;g.loot=[{id:'grenade',x:150,y:500,hits:38,age:5}];const damage=weaponStats(g.p).damage;
+g.exitEndless();assert.equal(save.data.coins,123);assert.equal(save.data.endless.wave,8);save.load();assert.ok(save.data.endless);save.data.shop.damage=4;g.start('endless');assert.equal(g.p.hp,70);assert.equal(g.p.breachLoss,30);assert.equal(g.mode.wave,8);assert.equal(g.p.level,9);assert.equal(g.p.inventory.grenade,2);assert.equal(g.loot[0].hits,38);assert.ok(g.enemies.items.some(e=>e.active&&e.hp===ehp));assert.ok(weaponStats(g.p).damage>damage);g.checkpointEndless();g.checkpointEndless();assert.equal(save.data.coins,123,'重复存档不得重复发钱');
+g.finish(false);assert.equal(save.data.endless,null,'失败不可续存死局');
+g.start('campaign',3);g.enemies.clear();g.mode.remaining=100;g.mode.spawnPack(g);const xs=g.enemies.items.filter(e=>e.active).map(e=>e.x);assert.ok(Math.max(...xs)-Math.min(...xs)>150,'中期必须分散');
+g.start('endless');g.loot=[];g.lootClock=B.director.lootFirst;g.healClock=B.director.healFirst;let total=0;for(let i=0;i<180;i++){g.time++;updateLoot(g,1);total+=g.loot.filter(o=>o.id!=='heal').length;g.loot=[];}assert.ok(total>=6&&total<=15,`三分钟强化补给 ${total}`);
+assert.equal(validate({...fresh(),stage:15,campaign:{...fresh().campaign,nextStage:15}}).stage,10);
+console.log('PASS 10-stage migration, positive rate tutorial, level-up does not spawn loot, sparse drops, scattered enemies, endless exit/save/shop/resume, no duplicate coins, death resets run');
+
+```
+
+## tests/revision45.mjs
+```
+import assert from 'node:assert/strict';
+import {Game,Input} from '../js/game.js';
+import {save,fresh} from '../js/save.js';
+import {initEntities,updateEntities,hit} from '../js/entities.js';
+import {Particles} from '../js/particles.js';
+import {updateLoot,unlockHits,useItem} from '../js/loot.js';
+import {BALANCE as B} from '../js/config.js';
+let seed=902;Math.random=()=> (seed=(Math.imul(seed,1664525)+1013904223)>>>0)/4294967296;
+globalThis.localStorage={setItem(){},getItem(){return null;}};
+function game(){const g=Object.create(Game.prototype);g.fx=new Particles();g.ui=new Proxy({}, {get:()=>()=>{}});g.input={reset(){},move(){}};initEntities(g);return g;}
+save.data=fresh();const g=game();g.start('campaign',1);assert.equal(new Set(g.enemies.items.filter(e=>e.active).map(e=>e.x)).size,3);
+for(let j=0;j<6;j++){g.mode.remaining=100;g.mode.spawnPack(g);}assert.ok(g.enemies.items.filter(e=>e.active).every(e=>e.x>=160&&e.x<=560));
+const p={x:192,squad:1n,speed:235};Input.prototype.move.call({target:540,pointer:1,keys:new Set()},p,1/60);assert.equal(p.x,540);
+g.start('campaign',1);g.time=5;updateLoot(g,5);assert.equal(g.loot[0].id,'grenade');assert.ok(g.loot[0].hits<=6);
+for(const stage of [3,4]){g.start('campaign',stage);const e=g.spawnEnemy(4);e.shield=0;e.plates=0;e.guard=0;e.cycle=4;e.hp=1;const shots=g.p.shots,squad=g.p.squad;hit(g,e,1000,false,true);assert.ok(g.p.shots>shots||g.p.squad>squad);const rewarded=g.p.squad;hit(g,e,1000);assert.equal(g.p.squad,rewarded,'不能重复领取');}
+console.log('PASS multi-lane opening, side margins, immediate drag, early accessible grenade, guaranteed stage3+ boss reward');
+// 完整闯关自动策略，真实射击/拾取/门/首领/结算；不直接修改战斗属性。
+save.data=fresh();const sim=game();sim.input.move=(p,dt)=>{const threats=sim.enemies.items.filter(e=>e.active).sort((a,b)=>b.y-a.y),urgent=threats.find(e=>e.type!==4&&e.y>650),gate=sim.runway.rows[0]?.gates[0],loot=sim.loot.find(o=>o.y>350),zones=sim.hazards.items.filter(h=>h.active);let x=urgent?.x??(loot?.x??(gate?.x??threats[0]?.x??360));if(zones.some(h=>Math.abs(h.x-x)<h.width+50)){x=[160,360,560].find(v=>zones.every(h=>Math.abs(h.x-v)>h.width+60))??360;}p.x=x;};
+for(let stage=1;stage<=4;stage++){sim.start('campaign',stage);for(let tick=0;tick<600*60&&sim.state==='playing';tick++){sim.time+=1/60;sim.mode.update(sim,1/60);if(sim.state==='playing')updateEntities(sim,1/60);sim.fx.update(1/60);if(tick%60===0&&sim.enemies.count>=3)for(const id of ['grenade','turret','laser'])useItem(sim,id);}console.log({stage,seconds:Math.round(sim.time),hp:sim.p.hp,kills:sim.kills,shots:sim.p.shots,squad:String(sim.p.squad),next:save.data.campaign.nextStage});assert.ok(sim.p.hp>0&&save.data.campaign.nextStage>stage,'前四关换线拾取策略应可通关');}
+
+save.data=fresh();const idle=game();idle.start('campaign',1);for(let i=0;i<300*60&&idle.state==='playing';i++){idle.time+=1/60;idle.mode.update(idle,1/60);if(idle.state==='playing')updateEntities(idle,1/60);idle.fx.update(1/60);}assert.equal(save.data.campaign.nextStage,1,'站桩不应通关首关');console.log('PASS active strategy clears 1–4, stationary strategy cannot clear stage1');
+
+```
+
+## tests/revision46.mjs
+```
+import assert from 'node:assert/strict';
+import {player,initEntities,spawnEnemy,hit,updateEntities} from '../js/entities.js';
+import {shopCost} from '../js/shop.js';
+import {Runway} from '../js/runway.js';
+import {Particles} from '../js/particles.js';
+import {Mode} from '../js/modes.js';
+const g={p:player(),mode:new Mode('campaign'),state:'playing',time:0,fx:new Particles(),runway:new Runway(),input:{move(){}},ui:{toast(){}},kills:0,coins:0,score:0,lootClock:1000,healClock:1000,loot:[],turrets:[],levelUp(){},finish(){}};initEntities(g);g.runway.rows=[];g.runway.drums=[];g.runway.nextRow=1000;
+for(let i=0;i<3;i++){const e=spawnEnemy(g,0);e.x=600;e.y=300;hit(g,e,10000);}
+assert.equal(g.coins,3,'击杀基础收益不变');assert.equal(g.gems.items.filter(e=>e.active).reduce((a,b)=>a+(b.coins||0),0),1);
+updateEntities(g,1/60);assert.equal(g.coins,3,'远处掉落不会自动给CR');for(const gem of g.gems.items)if(gem.active){gem.x=g.p.x;gem.y=g.p.y;}updateEntities(g,1/60);assert.equal(g.coins,4);updateEntities(g,1/60);assert.equal(g.coins,4,'不能重复领取');
+assert.equal(shopCost(0),60);for(let i=0;i<10;i++){const old=Math.ceil(80*(i+1)**3*1.07**i);assert.ok(i<3?shopCost(i)<old:shopCost(i)===old);}console.log('PASS pickup-only bonus CR, no double collection, first three levels discounted, later costs unchanged');
+
+```
+
+## tests/revision47.mjs
+```
+import assert from 'node:assert/strict';
+import {Game} from '../js/game.js';
+import {save,fresh} from '../js/save.js';
+import {initEntities,hit} from '../js/entities.js';
+import {Particles} from '../js/particles.js';
+import {encounterHP} from '../js/combat.js';
+import {difficulty} from '../js/modes.js';
+import {BALANCE as B} from '../js/config.js';
+globalThis.localStorage={setItem(){},getItem(){return null;}};
+function game(){const g=Object.create(Game.prototype);g.fx=new Particles();g.ui=new Proxy({}, {get:()=>()=>{}});g.input={reset(){},move(){}};initEntities(g);return g;}
+save.data=fresh();const g=game();g.start('campaign',6);g.p.damage=10748.8;g.p.rate=1/240;g.p.squad=2n;g.p.shots=3;
+const hp=encounterHP(g.p,0,6);assert.ok(hp>g.p.damage*10&&hp<g.p.damage*80,'录像火力下不能一枪蒸发，也不能变血墙');
+for(let stage=5;stage<=100;stage++){for(let type=0;type<5;type++){const a=encounterHP(g.p,type,stage),b=encounterHP(g.p,type,stage+1);assert.ok(Number.isFinite(a)&&b/a<1.1,'后期血量无指数跳档');}const a=difficulty({kind:'campaign',stage,local:2,aoe:true},20,230);assert.ok(a.pack<=12);}
+const d4=difficulty({kind:'campaign',stage:4,local:2},20,230),d5=difficulty({kind:'campaign',stage:5,local:2},20,230);assert.ok(d5.population/d4.population<1.3);
+g.enemies.clear();g.mode.remaining=100;g.mode.spawnPack(g);assert.ok(g.enemies.items.filter(e=>e.active).every(e=>e.y>=260&&e.y<=405&&e.x>=160&&e.x<=560));
+const enemy=g.enemies.items.find(e=>e.active),fixed=enemy.hp;g.p.damage*=2;assert.equal(enemy.hp,fixed,'强化不改变已生成敌人血量');
+g.enemies.clear();g.gems.clear();g.kills=0;g.coins=0;for(let i=0;i<100;i++){const e=g.spawnEnemy(0);e.x=360;e.y=400;hit(g,e,e.hp*2);}
+assert.equal(g.gems.count,1);const gem=g.gems.items.find(e=>e.active);assert.equal(gem.value,400);assert.equal(gem.coins,33);assert.equal(g.coins,100,'合并不能吞经验或CR');
+g.start('endless');g.mode.wave=16;g.p.damage=10748.8;g.p.rate=1/240;g.p.squad=2n;g.p.shots=3;assert.equal(g.spawnEnemy(0).maxHP,hp,'无限使用同一晚期血量算法');
+console.log('PASS late HP continuity to stage100, stage5 budget continuity, visible spawn bounds, immutable living HP, XP/CR conservation, endless parity');
+
+```
+
+## tests/runway.mjs
 ```
 import assert from 'node:assert/strict';
 import { BALANCE as B } from '../js/config.js';
@@ -2330,14 +2475,44 @@ console.log('PASS: alternating upgrade gates, frontal spawn entrances, exact 10 
 
 ```
 
-## tests\smoke40.mjs
+## tests/smoke40.mjs
 ```
 import {writeFile} from 'node:fs/promises';
 const tab=await(await fetch('http://127.0.0.1:9229/json/new?http://127.0.0.1:8766/',{method:'PUT'})).json();const ws=new WebSocket(tab.webSocketDebuggerUrl);await new Promise(r=>ws.onopen=r);let id=0;const jobs=new Map();ws.onmessage=e=>{const m=JSON.parse(e.data);if(m.id){jobs.get(m.id)(m.result);jobs.delete(m.id);}};const send=(method,params={})=>new Promise(r=>{jobs.set(++id,r);ws.send(JSON.stringify({id,method,params}));});await send('Page.enable');await send('Network.setCacheDisabled',{cacheDisabled:true});await send('Page.reload',{ignoreCache:true});await new Promise(r=>setTimeout(r,2000));const result=await send('Runtime.evaluate',{expression:'(async()=>{const {game:g}=await import("./js/main.js");g.start("endless");return {state:g.state,people:String(g.p.squad),weapon:g.p.weapon};})()',awaitPromise:true,returnByValue:true});console.log(JSON.stringify(result));await new Promise(r=>setTimeout(r,3000));console.log(JSON.stringify(await send('Runtime.evaluate',{expression:'obsidianDiagnostics()',returnByValue:true})));await writeFile('screenshots/v4.png',Buffer.from((await send('Page.captureScreenshot')).data,'base64'));await send('Page.close');ws.close();
 
 ```
 
-## tests\verification-3.2.json
+## tests/smoke46.mjs
+```
+import {writeFile} from 'node:fs/promises';
+const tab=await(await fetch('http://127.0.0.1:9229/json/new?http://127.0.0.1:8766/',{method:'PUT'})).json();const ws=new WebSocket(tab.webSocketDebuggerUrl);await new Promise(r=>ws.onopen=r);let id=0;const jobs=new Map();ws.onmessage=e=>{const m=JSON.parse(e.data);if(m.id){jobs.get(m.id)(m.result);jobs.delete(m.id);}};const send=(method,params={})=>new Promise(r=>{jobs.set(++id,r);ws.send(JSON.stringify({id,method,params}));});await send('Page.enable');await send('Network.setBypassServiceWorker',{bypass:true});await send('Emulation.setDeviceMetricsOverride',{width:412,height:915,deviceScaleFactor:2,mobile:true});await send('Network.setCacheDisabled',{cacheDisabled:true});await send('Page.reload',{ignoreCache:true});await new Promise(r=>setTimeout(r,2000));const result=await send('Runtime.evaluate',{expression:'(async()=>{const {game:g}=await import("./js/main.js");g.start("endless");return {state:g.state,people:String(g.p.squad),weapon:g.p.weapon};})()',awaitPromise:true,returnByValue:true});console.log(JSON.stringify(result));await new Promise(r=>setTimeout(r,3000));console.log(JSON.stringify(await send('Runtime.evaluate',{expression:'obsidianDiagnostics()',returnByValue:true})));await writeFile('screenshots/v46.png',Buffer.from((await send('Page.captureScreenshot')).data,'base64'));await send('Page.close');ws.close();
+
+```
+
+## tests/smoke47.mjs
+```
+import {writeFile} from 'node:fs/promises';
+const tab=await(await fetch('http://127.0.0.1:9229/json/new?about:blank',{method:'PUT'})).json();const ws=new WebSocket(tab.webSocketDebuggerUrl);await new Promise(r=>ws.onopen=r);let id=0;const jobs=new Map();ws.onmessage=e=>{const m=JSON.parse(e.data);if(m.id){jobs.get(m.id)(m.result);jobs.delete(m.id);}};const send=(method,params={})=>new Promise(r=>{jobs.set(++id,r);ws.send(JSON.stringify({id,method,params}));});await send('Page.enable');await send('Network.enable');await send('Network.setBypassServiceWorker',{bypass:true});await send('Emulation.setDeviceMetricsOverride',{width:412,height:915,deviceScaleFactor:2,mobile:true});await send('Network.setCacheDisabled',{cacheDisabled:true});await send('Page.navigate',{url:'http://127.0.0.1:8766/?qa47='+Date.now()});await new Promise(r=>setTimeout(r,2000));
+async function evaluate(expression){const r=await send('Runtime.evaluate',{expression,awaitPromise:true,returnByValue:true});if(r.exceptionDetails)throw Error(JSON.stringify(r.exceptionDetails));return r.result.value;}
+console.log(await evaluate(`(async()=>({particle:(await import('./js/particles.js')).Particles.prototype.number.toString(),sprite:(await import('./js/assets.js')).sprite.toString().slice(-250),served:(await (await fetch('./js/particles.js?qa='+Date.now())).text()).includes("value:value>=1e6")}))()`));
+await evaluate(`(async()=>{const {game:g}=await import('./js/main.js');const {save,fresh}=await import('./js/save.js');const h=await import('./tests/playthrough47.mjs');cancelAnimationFrame(g.raf);g.suspended=true;save.data=fresh();let seed=902;Math.random=()=> (seed=(Math.imul(seed,1664525)+1013904223)>>>0)/4294967296;window.qa={g,h,tick:0,results:[]};h.control(g);return true;})()`);
+for(let stage=1;stage<=10;stage++){
+ await evaluate(`qa.g.start('campaign',${stage});qa.tick=0;true`);
+ let peak=-1,status;
+ do{
+ status=await evaluate(`(()=>{const {g,h}=qa;for(let i=0;i<600&&g.state==='playing';i++)h.step(g,qa.tick++);g.visualTime=g.time;g.shake=0;g.ui.update();g.render(1);return {stage:g.mode.stage,time:g.time,hp:g.p.hp,state:g.state,enemies:g.enemies.count};})()`);
+ if([5,10].includes(stage)&&status.enemies>peak&&status.state==='playing'){
+ await writeFile('screenshots/v47-stage'+stage+'.png',Buffer.from((await send('Page.captureScreenshot')).data,'base64'));peak=status.enemies;
+ }
+ }while(status.state==='playing'&&status.time<600);
+ console.log(status);if(status.hp<=0||status.state==='playing')throw Error('Playthrough failed');
+}
+await writeFile('screenshots/v47-browser-report.json',JSON.stringify(await evaluate('({stages:10,state:qa.g.state,hp:qa.g.p.hp})'),null,2));
+await send('Page.close');ws.close();
+
+```
+
+## tests/verification-3.2.json
 ```
 {
   "version": "3.2.0",
@@ -2357,7 +2532,7 @@ const tab=await(await fetch('http://127.0.0.1:9229/json/new?http://127.0.0.1:876
 }
 ```
 
-## tests\verification-3.3.json
+## tests/verification-3.3.json
 ```
 {
   "version": "3.3.0",
@@ -2384,7 +2559,7 @@ const tab=await(await fetch('http://127.0.0.1:9229/json/new?http://127.0.0.1:876
 }
 ```
 
-## tests\verification-3.4.json
+## tests/verification-3.4.json
 ```
 {
   "version": "3.4.0",
@@ -2431,7 +2606,7 @@ const tab=await(await fetch('http://127.0.0.1:9229/json/new?http://127.0.0.1:876
 }
 ```
 
-## tests\verification-3.5.json
+## tests/verification-3.5.json
 ```
 {
   "version": "3.5.0",
@@ -2479,7 +2654,7 @@ const tab=await(await fetch('http://127.0.0.1:9229/json/new?http://127.0.0.1:876
 }
 ```
 
-## tests\verification-3.6.json
+## tests/verification-3.6.json
 ```
 {
   "version": "3.6.0",
@@ -2499,7 +2674,7 @@ const tab=await(await fetch('http://127.0.0.1:9229/json/new?http://127.0.0.1:876
 }
 ```
 
-## tests\verification-3.7.json
+## tests/verification-3.7.json
 ```
 {
   "version": "3.7.0",
@@ -2512,7 +2687,7 @@ const tab=await(await fetch('http://127.0.0.1:9229/json/new?http://127.0.0.1:876
 }
 ```
 
-## tests\verification-3.8.json
+## tests/verification-3.8.json
 ```
 {
   "version": "3.8.0",
@@ -2539,7 +2714,7 @@ const tab=await(await fetch('http://127.0.0.1:9229/json/new?http://127.0.0.1:876
 }
 ```
 
-## tests\verification-4.3.json
+## tests/verification-4.3.json
 ```
 {
   "version": "4.3.0",
@@ -2550,3 +2725,195 @@ const tab=await(await fetch('http://127.0.0.1:9229/json/new?http://127.0.0.1:876
   "sha256": "c3ef59030c49d665add36a5a3114f7c2f93105759ba37d29a60470daa03ce62f"
 }
 ```
+
+## tests/verification-4.5.json
+```
+{
+  "version": "4.5.0",
+  "suites": [
+    "revision44 PASS",
+    "revision45 PASS"
+  ],
+  "campaign": "seeded active strategy clears 1\u20134; stationary cannot clear stage1",
+  "browser": "startup PASS",
+  "physicalAndroid": "not tested",
+  "sha256": "f23b218933f1408a75868dacea7831e59bfd6b6b77d4728f0e1743d7e3de1136"
+}
+```
+
+## tests/verification-4.6.json
+```
+{
+  "version": "4.6.0",
+  "logic": "revision44,45,46 PASS",
+  "visual": "412x915 HUD screenshot checked with service worker bypass",
+  "androidPhysical": "not tested",
+  "sha256": "5e0cd5647491b807b97e3cbfbcfa984345ff2b7fe503389f3bd184bec341dc74"
+}
+```
+
+## screenshots/v47-browser-report.json
+```
+{
+  "stages": 10,
+  "state": "ended",
+  "hp": 120
+}
+```
+
+## screenshots/v47-playthrough.json
+```
+[
+  {
+    "damage": 11.799999999999999,
+    "rate": 34.111111111111114,
+    "peak": 10,
+    "average": 4,
+    "peakGems": 7,
+    "meanLife": 4.35,
+    "stage": 1,
+    "seconds": 80,
+    "hp": 120,
+    "kills": 73,
+    "shots": 1,
+    "squad": "1",
+    "next": 2
+  },
+  {
+    "damage": 203.924,
+    "rate": 138.11111111111111,
+    "peak": 18,
+    "average": 8.8,
+    "peakGems": 14,
+    "meanLife": 5.76,
+    "stage": 2,
+    "seconds": 81,
+    "hp": 120,
+    "kills": 127,
+    "shots": 1,
+    "squad": "1",
+    "next": 3
+  },
+  {
+    "damage": 1084.924,
+    "rate": 240,
+    "peak": 21,
+    "average": 9,
+    "peakGems": 17,
+    "meanLife": 3.96,
+    "stage": 3,
+    "seconds": 78,
+    "hp": 120,
+    "kills": 181,
+    "shots": 3,
+    "squad": "1",
+    "next": 4
+  },
+  {
+    "damage": 10962.924,
+    "rate": 240,
+    "peak": 21,
+    "average": 7,
+    "peakGems": 23,
+    "meanLife": 2.41,
+    "stage": 4,
+    "seconds": 82,
+    "hp": 120,
+    "kills": 235,
+    "shots": 3,
+    "squad": "2",
+    "next": 5
+  },
+  {
+    "damage": 16737.924,
+    "rate": 240,
+    "peak": 40,
+    "average": 12,
+    "peakGems": 21,
+    "meanLife": 3.77,
+    "stage": 5,
+    "seconds": 90,
+    "hp": 120,
+    "kills": 289,
+    "shots": 4,
+    "squad": "2",
+    "next": 6
+  },
+  {
+    "damage": 23469.924,
+    "rate": 240,
+    "peak": 47,
+    "average": 13.6,
+    "peakGems": 22,
+    "meanLife": 4.25,
+    "stage": 6,
+    "seconds": 106,
+    "hp": 62.30008665517772,
+    "kills": 343,
+    "shots": 4,
+    "squad": "3",
+    "next": 7
+  },
+  {
+    "damage": 35077.924,
+    "rate": 240,
+    "peak": 60,
+    "average": 18.7,
+    "peakGems": 21,
+    "meanLife": 4.24,
+    "stage": 7,
+    "seconds": 89,
+    "hp": 120,
+    "kills": 397,
+    "shots": 5,
+    "squad": "3",
+    "next": 8
+  },
+  {
+    "damage": 46262.924,
+    "rate": 240,
+    "peak": 55,
+    "average": 19.4,
+    "peakGems": 23,
+    "meanLife": 4.06,
+    "stage": 8,
+    "seconds": 94,
+    "hp": 120,
+    "kills": 451,
+    "shots": 5,
+    "squad": "4",
+    "next": 9
+  },
+  {
+    "damage": 65155.924,
+    "rate": 240,
+    "peak": 60,
+    "average": 20,
+    "peakGems": 30,
+    "meanLife": 3.26,
+    "stage": 9,
+    "seconds": 82,
+    "hp": 120,
+    "kills": 505,
+    "shots": 6,
+    "squad": "4",
+    "next": 10
+  },
+  {
+    "damage": 78124.924,
+    "rate": 240,
+    "peak": 38,
+    "average": 12.5,
+    "peakGems": 28,
+    "meanLife": 1.94,
+    "stage": 10,
+    "seconds": 87,
+    "hp": 120,
+    "kills": 559,
+    "shots": 6,
+    "squad": "5",
+    "next": 10
+  }
+]
+```
+

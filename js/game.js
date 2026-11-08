@@ -28,14 +28,13 @@ export class Input {
       this.origin = this.target = game.p.x;
     });
     canvas.addEventListener('pointermove', event => {
-      if (event.pointerId === this.pointer)
-        this.target = this.origin + this.logicalX(event) - this.anchor;
+      if(event.pointerId===this.pointer){this.target=this.origin+this.logicalX(event)-this.anchor;this.move(game.p,0);game.p.px=game.p.x;}
     });
     const release = event => {
       if (event.pointerId !== this.pointer) return;
       if (event.type === 'pointerup') {
         this.target = this.origin + this.logicalX(event) - this.anchor;
-        this.pointer = null;
+        this.move(game.p,0);game.p.px=game.p.x;this.pointer=null;this.target=null;
       } else this.reset();
     };
     for (const type of ['pointerup', 'pointercancel', 'lostpointercapture'])
@@ -71,7 +70,7 @@ export class Input {
     const right = this.keys.has('ArrowRight') || this.keys.has('KeyD');
     const left = this.keys.has('ArrowLeft') || this.keys.has('KeyA');
     const delta = this.target === null ? (Number(right) - Number(left)) * step
-                                      : clamp(this.target - player.x, -step, step);
+                                      : this.target - player.x;
     const edge = 47 + (Math.min(visibleTroopers(player.squad), B.track.columns) - 1) * B.track.spacing / 2;
     player.x = clamp(player.x + delta, edge, B.width - edge);
     if (this.pointer === null && this.target !== null &&
@@ -93,6 +92,7 @@ export class Game{
    this.acc = 0;
    this.last = 0;
    if (hidden) {
+     if(this.mode?.kind==='endless'&&['playing','paused'].includes(this.state))this.checkpointEndless();
      this.backgroundPause = this.state === 'playing';
      if (this.backgroundPause) this.state = 'background';
      this.input.reset();
@@ -108,12 +108,12 @@ export class Game{
  }
  detailScale(){return this.fx.quality<.45?.7:this.fx.quality<.65?.85:1;}
  resize(){const host=document.querySelector('#viewport').getBoundingClientRect(),scale=Math.min(host.width/B.width,host.height/B.height);document.documentElement.style.setProperty('--touch-min',Math.ceil(48/Math.max(.25,scale))+'px');document.querySelector('#stage').style.transform=`scale(${scale})`;this.pixelRatio=Math.min(B.dpr,window.devicePixelRatio||1);this.renderDetail=this.detailScale();const res=Math.min(1,scale)*this.pixelRatio*this.renderDetail;this.canvas.width=Math.round(B.width*res);this.canvas.height=Math.round(B.height*res);this.ctx.setTransform(this.canvas.width/B.width,0,0,this.canvas.height/B.height,0,0);}
- start(kind,stage=1){this.mode=new Mode(kind,stage);this.p=player();this.p.upgradeHistory=[];this.p.pendingUpgrades=0;this.claiming=false;this.offers=null;if(kind==='campaign')restoreProgress(this.p,save.data.campaign);this.runway=new Runway(this.p.squad);this.runway.rows=[];this.runway.serial=0;this.runway.addRow(475,this.p.squad,this.p);this.loot=[];this.lootClock=3;this.turrets=[];this.time=0;this.edgeWarning=0;this.leaks=0;this.score=0;this.coins=0;this.kills=0;this.freeze=0;this.shake=0;this.acc=0;for(const pool of [this.enemies,this.bullets,this.gems,this.corpses,this.hazards])pool.clear();this.fx.clear();this.effects.length=0;this.nextEliteStrike=0;this.state='playing';this.input.reset();this.ui.show('');this.ui.setupHUD();this.mode.next(this);this.runway.openingConvoy(this);this.ui.update();this.ui.toast(stageBrief(stage));audio.unlock();}
+ start(kind,stage=1){this.mode=new Mode(kind,stage);this.p=player();this.p.upgradeHistory=[];this.p.pendingUpgrades=0;this.claiming=false;this.offers=null;if(kind==='campaign')restoreProgress(this.p,save.data.campaign);else if(save.data.endless)restoreProgress(this.p,save.data.endless.progress);this.runway=new Runway(this.p.squad);this.runway.rows=[];this.runway.serial=0;this.runway.addRow(475,this.p.squad,this.p);if(stage===1&&kind==='campaign'){this.runway.rows[0].gates[0].stat='rate';this.runway.rows[0].gates[0].value=2n;}this.loot=[];this.lootSerial=0;this.lootClock=B.director.lootFirst;this.healClock=B.director.healFirst;this.turrets=[];this.time=0;this.edgeWarning=0;this.leaks=0;this.score=0;this.coins=0;this.kills=0;this.freeze=0;this.shake=0;this.acc=0;for(const pool of [this.enemies,this.bullets,this.gems,this.corpses,this.hazards])pool.clear();this.fx.clear();this.effects.length=0;this.nextEliteStrike=0;this.state='playing';this.input.reset();this.ui.show('');this.ui.setupHUD();if(kind==='endless'&&save.data.endless)this.restoreEndless(save.data.endless);else{this.mode.next(this);this.runway.openingConvoy(this);}this.ui.update();this.ui.toast(stageBrief(stage));audio.unlock();}
  spawnEnemy(type){const e=spawnEnemy(this,type);if(e&&type===4){audio.play('boss');this.ui.toast('重甲首领入场');}return e;}
  pause(){if(this.state!=='playing')return;this.claiming=false;this.state='paused';this.acc=0;this.input.reset();this.ui.paused();}
  resume(){if(this.state!=='paused')return;this.state='playing';this.acc=0;this.last=performance.now();this.ui.show('');}
  /** 等级只积攒领取次数；不改变模拟状态，不弹窗、不重置触摸。 */
- levelUp(){const p=this.p;while(p.xp>=p.nextXP&&Number.isFinite(p.nextXP)){p.xp-=p.nextXP;p.nextXP=Math.ceil(p.nextXP*B.xpGrowth);p.level++;this.lootClock=Math.min(this.lootClock||0,1);}this.persistGrowth();}
+ levelUp(){const p=this.p;while(p.xp>=p.nextXP&&Number.isFinite(p.nextXP)){p.xp-=p.nextXP;p.nextXP=Math.ceil(p.nextXP*B.xpGrowth);p.level++;/* 等级提升不催生补给，独立刷新时钟。 */}this.persistGrowth();}
  persistGrowth(){if(this.mode.kind==='campaign'){save.data.campaign=captureProgress(this.p,save.data.campaign);save.write();}}
  openUpgrades(){if(this.state!=='playing'||!this.p.pendingUpgrades)return;this.claiming=true;this.offers=this.offers?.length?this.offers:choices(this.p);this.ui.upgrade(this.offers);}
  closeUpgrades(){this.claiming=false;this.ui.overlay.innerHTML='';}
@@ -122,7 +122,12 @@ export class Game{
  choose(u){if(this.state!=='playing'||!this.claiming||!this.offers.includes(u))return;if(!this.applyUpgrade(u))return;this.persistGrowth();if(this.p.pendingUpgrades)this.openUpgrades();else this.closeUpgrades();audio.play('upgrade');}
  /** 批领只从每次真实三选一卡中选取：优先专精进阶，其次低等级；专精由玩家亲选。 */
  claimAll(){if(this.state!=='playing'||!this.claiming)return;let count=0;const names=new Map();while(this.p.pendingUpgrades){const offered=this.offers;if(!offered.length||offered.every(u=>u.group==='专精'))break;const ranked=[...offered].sort((a,b)=>(b.group!=='基础')-(a.group!=='基础')||this.p.upgradeHistory.filter(id=>id===a.id).length-this.p.upgradeHistory.filter(id=>id===b.id).length);const u=ranked[0];if(!this.applyUpgrade(u))break;count++;names.set(u.name,(names.get(u.name)||0)+1);this.offers=choices(this.p);}this.persistGrowth();if(this.p.pendingUpgrades)this.ui.upgrade(this.offers);else this.closeUpgrades();this.ui.toast(count?`已领取 ${count} 项：${[...names].map(([n,k])=>n+'×'+k).join('、')}`:'请先亲自选择专精');}
- finish(win){if(this.state==='ended')return;this.state='ended';this.input.reset();if(win){this.coins+=B.stageCoins*this.mode.stage;}this.claiming=false;this.levelUp();const d=save.data;if(this.mode.kind==='campaign')d.campaign=captureProgress(this.p,d.campaign,win,this.mode.stage);d.coins=Math.min(Number.MAX_SAFE_INTEGER,d.coins+this.coins);if(win&&this.mode.kind==='campaign')d.stage=Math.max(d.stage,Math.min(15,this.mode.stage+1));if(this.mode.kind==='endless'){d.best=Math.max(d.best,this.score);d.top.push(this.score);d.top.sort((a,b)=>b-a);d.top=d.top.slice(0,10);}save.write();this.ui.result(win);if(save.warning)this.ui.toast(save.warning);}
+ /** 主动结算只支付本次新增金币；敌人血量、波次与生命原样续接。 */
+ checkpointEndless(){if(this.mode?.kind!=='endless'||this.state==='ended'||this.p.hp<=0)return;save.data.endless=this.endlessSnapshot();save.data.coins=Math.min(Number.MAX_SAFE_INTEGER,save.data.coins+this.coins);this.coins=0;save.write();}
+ exitEndless(){if(this.mode.kind!=='endless')return;this.finish(false,true);this.ui.menu();this.ui.toast('无限进度已保存、信用点已结算；购买后可续战');}
+ endlessSnapshot(){return {lootSerial:this.lootSerial||0,hazards:this.hazards.items.filter(h=>h.active).map(({owner,...h})=>h),x:this.p.x,kills:this.kills,leaks:this.leaks,loot:this.loot.map(o=>({...o})),turrets:this.turrets.map(t=>({...t})),rows:this.runway.rows.map(r=>({...r,gates:r.gates.map(t=>({...t,value:String(t.value),charge:String(t.charge||0),scale:String(t.scale||10)}))})),drums:this.runway.drums.map(d=>({...d})),progress:captureProgress(this.p,save.data.endless?.progress||save.data.campaign,true),wave:this.mode.wave,elapsed:this.mode.elapsed,time:this.time,remaining:this.mode.remaining,budget:this.mode.budget,bossSpawned:this.mode.bossSpawned,spawnTimer:this.mode.spawnTimer,enemies:this.enemies.items.filter(e=>e.active).map(e=>({...e})),hp:this.p.hp,breachLoss:this.p.breachLoss||0,score:this.score,gateWait:Math.max(8,this.runway.nextRow),lootWait:Math.max(8,this.lootClock),healWait:Math.max(8,this.healClock)};}
+ restoreEndless(s){const m=this.mode;m.wave=s.wave-1;m.local=s.wave-1;m.next(this);Object.assign(m,{elapsed:s.elapsed,remaining:s.remaining,budget:s.budget,bossSpawned:s.bossSpawned,spawnTimer:s.spawnTimer??1});this.time=s.time;this.score=s.score;this.lootSerial=s.lootSerial||0;this.p.x=this.p.px=s.x??192;this.kills=s.kills||0;this.leaks=s.leaks||0;this.loot=s.loot||[];this.turrets=s.turrets||[];this.p.hp=s.hp;this.p.breachLoss=s.breachLoss;this.serial=0;for(const data of s.enemies){this.enemies.take({...data,active:true,px:data.x,py:data.y});this.serial=Math.max(this.serial,data.id);}for(const h of s.hazards||[]){const owner=this.enemies.items.find(e=>e.active&&e.id===h.ownerId);if(owner)this.hazards.take({...h,owner});}this.runway.rows=(s.rows||[]).map(r=>({...r,gates:r.gates.map(t=>({...t,value:BigInt(t.value),charge:BigInt(t.charge||0),scale:BigInt(t.scale||10)}))}));this.runway.drums=s.drums||[];this.runway.nextRow=s.gateWait??32;this.lootClock=s.lootWait??B.director.lootFirst;this.healClock=s.healWait??B.director.healFirst;}
+ finish(win,exiting=false){if(this.state==='ended')return;this.state='ended';this.input.reset();if(win){this.coins+=B.stageCoins*this.mode.stage;}this.claiming=false;this.levelUp();const d=save.data;if(this.mode.kind==='campaign')d.campaign=captureProgress(this.p,d.campaign,win,this.mode.stage);d.coins=Math.min(Number.MAX_SAFE_INTEGER,d.coins+this.coins);if(win&&this.mode.kind==='campaign')d.stage=Math.max(d.stage,Math.min(B.stages,this.mode.stage+1));if(this.mode.kind==='endless'){d.endless=exiting&&this.p.hp>0?this.endlessSnapshot():null;d.best=Math.max(d.best,this.score);d.top.push(this.score);d.top.sort((a,b)=>b-a);d.top=d.top.slice(0,10);}save.write();this.ui.result(win);if(save.warning)this.ui.toast(save.warning);}
  /** 固定60Hz模拟，累加器最多补6步，避免长帧死亡螺旋；渲染插值上个/当前坐标。 */
  frame(now){if(document.hidden||this.suspended)return;const raw=this.last?(now-this.last)/1000:1/60,dt=clamp(raw,0,.1);this.last=now;this.visualTime+=dt;this.fps=this.fps*.95+(1/Math.max(.001,raw))*.05;
   this.qualityClock+=dt;if(this.qualityClock>2){this.qualityClock=0;if(this.fps<B.qualityLowFPS)this.fx.quality=Math.max(B.qualityMin,this.fx.quality-.15);else if(this.fps>B.qualityHighFPS)this.fx.quality=Math.min(1,this.fx.quality+.05);if(this.detailScale()!==this.renderDetail)this.resize();}

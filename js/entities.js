@@ -1,4 +1,4 @@
-import {weaponStats} from './combat.js';
+import {weaponStats,encounterHP} from './combat.js';
 import {permanent} from './shop.js';
 import {updateLoot,drawLoot,hitLoot} from './loot.js';
 import {combatStage,stageHealth,initChallenge,armorFactor,updateEnemyChallenge,updateHazards,drawHazards,healthPressure} from './challenge.js';
@@ -15,7 +15,8 @@ export function spawnEnemy(g,type){
  const stage=combatStage(g),x=type===4?B.track.hordeX:rand(B.track.hordeLeft,B.track.hordeRight),y=type===4?B.bossStartY:rand(80,160);
  const bossScale=type===4?(stage%5===0?B.bossMajorHP:B.bossFinalHP):1;
  const pressure=Math.max(0,(g.mode.healthPressure??healthPressure(g.p.squad))-B.adaptive.baseSquad);
- const hp=(g.mode.fireHP||1)*(1+pressure*(type===4?B.adaptive.bossPerMember:B.adaptive.hpPerMember))*bossScale*B.enemyHP[type]*stageHealth(stage)*(1+B.hpWave*((g.mode.wave-1)%B.wavesPerStage))*(1+B.hpTime*Math.max(0,g.time-B.easyTime)/60);
+ const legacyHP=(type===4&&stage<=4?.03+.02*stage:stage<=2?.75:1)*(g.mode.fireHP||1)*(1+pressure*(type===4?B.adaptive.bossPerMember:B.adaptive.hpPerMember))*bossScale*B.enemyHP[type]*stageHealth(stage)*(1+B.hpWave*((g.mode.wave-1)%B.wavesPerStage))*(1+B.hpTime*Math.max(0,g.time-B.easyTime)/60);
+ const hp=stage<=4?legacyHP:encounterHP(g.p,type,stage);
  const e=g.enemies.take({id:++g.serial,type,x,y,px:x,py:y,r:B.enemyRadius[type],hp,maxHP:hp,speed:B.enemySpeed[type]*Math.min(B.speedCap,1+B.speedWave*g.mode.wave),angle:0,nextNumber:0,flash:0,freeze:0,burn:0,burnPower:0,plates:type===4?2:0,guard:0,lockedX:null,attack:B.bossAttack,phase:0,dash:0,dx:0,dy:0,elite:stage>=B.challenge.shieldStage&&type===2});
  return e?initChallenge(e,stage):null;
 }
@@ -46,12 +47,12 @@ export function hurt(g,damage,source){
 /** direct=false避免爆炸/电链/持续伤害递归触发，所有击杀统一结算。 */
 export function hit(g,e,damage,crit=false,direct=false){if(!e.active||e.guard>0)return;
  damage*=armorFactor(e);
- if(e.shield>0){e.shieldFlash=.25;
+ if(e.shield>0){if(!(e.shieldFlash>0))e.shieldFlash=.25;
    const factor=g.p.pierce>=B.challenge.shieldPierce||g.p.explosive?1:B.challenge.shieldResistance;
    const absorbed=Math.min(e.shield,damage*factor*(1+(g.p.shieldBonus||0)));e.shield-=absorbed;damage=0;
-   if(e.shield<=0){e.exposed=B.challenge.breakWindow;g.fx.ring(e.x,e.y,P.gold);}
+   if(e.shield<=0){e.exposed=B.challenge.breakWindow;g.fx.ring(e.x,e.y,P.gold,e.type===4?160:55);}
  }
- e.hp-=Math.max(0,damage);if(direct||crit||damage>=1)e.flash=.12;if((direct||crit)&&g.time>=(e.nextNumber||0)){g.fx.number(e.x,e.y-e.r,damage,crit);e.nextNumber=g.time+.18;}if(crit)g.shake=Math.max(g.shake,1.2);audio.play('hit');
+ e.hp-=Math.max(0,damage);if(direct||crit||damage>=1)e.flash=.12;if(damage>0&&(direct||crit)&&g.time>=(e.nextNumber||0)){g.fx.number(e.x,e.y-e.r,damage,crit);e.nextNumber=g.time+.18;}if(crit)g.shake=Math.max(g.shake,1.2);audio.play('hit');
  if(e.hp<=0 && e.plates>0){
    e.plates--; e.hp=e.maxHP; e.guard=B.bossWarning;
    e.lockedX=null;
@@ -59,14 +60,14 @@ export function hit(g,e,damage,crit=false,direct=false){if(!e.active||e.guard>0)
    g.ui.toast(e.plates ? '装甲击碎 · 继续集火' : '核心暴露 · 最后一层血量');
    return;
  }
- if(e.hp<=0){e.active=false;g.kills++;g.score=Math.min(1e12,g.score+Math.round(e.maxHP));g.coins+=e.type===4?B.bossCoins:B.coinKill;g.p.hp=Math.min(g.p.maxHP,g.p.hp+(g.p.repairOnKill||0)*healingFactor(g.p));g.corpses.take({x:e.x,y:e.y,type:e.type,angle:-Math.PI/2+.18,life:B.corpseTime});g.fx.burst(e.x,e.y,P[TYPES[e.type]],e.type===4?40:12);let gem=g.gems.take({x:e.x,y:e.y,px:e.x,py:e.y,value:B.enemyXP[e.type],pull:false});if(!gem){let closest=null,d=Infinity;for(const t of g.gems.items){const n=distance2(t,e);if(n<d){d=n;closest=t;}}if(closest)closest.value+=B.enemyXP[e.type];}if(e.type===3){g.fx.ring(e.x,e.y,P.bomber);if(distance2(e,g.p)<B.explosionRadius**2)hurt(g,B.enemyDamage[3]);}}
+ if(e.hp<=0){e.active=false;if(e.type===4&&e.stage>=3){if(g.p.shots<B.maxShots&&e.stage%2===1){g.p.shots++;g.p.upgradeHistory.push('multi');g.ui.toast('首领奖励：分裂弹 +1（已生效）');}else{g.p.squad++;g.ui.toast('首领奖励：增援 +1（已加入）');}g.fx.ring(g.p.x,g.p.y,P.gold);g.persistGrowth?.();}g.kills++;g.score=Math.min(1e12,g.score+Math.round(e.maxHP));g.coins+=e.type===4?B.bossCoins:B.coinKill;g.p.hp=Math.min(g.p.maxHP,g.p.hp+(g.p.repairOnKill||0)*healingFactor(g.p));g.corpses.take({x:e.x,y:e.y,type:e.type,angle:-Math.PI/2+.18,life:B.corpseTime});g.fx.burst(e.x,e.y,P[TYPES[e.type]],e.type===4?24:B.encounter.killParticles);let merged=g.gems.items.find(t=>t.active&&!t.pull&&distance2(t,e)<B.encounter.gemMergeRadius**2);let gem=merged?null:g.gems.take({x:e.x,y:e.y,px:e.x,py:e.y,value:B.enemyXP[e.type],coins:e.type===4?B.coinPickupBoss:(e.type===2||g.kills%B.coinPickupEvery===0?1:0),pull:false});if(!gem){let closest=merged,d=merged?0:Infinity;for(const t of g.gems.items){if(!t.active)continue;const n=distance2(t,e);if(n<d){d=n;closest=t;}}if(closest){closest.value+=B.enemyXP[e.type];closest.coins=(closest.coins||0)+(e.type===4?B.coinPickupBoss:(e.type===2||g.kills%B.coinPickupEvery===0?1:0));}}if(e.type===3){g.fx.ring(e.x,e.y,P.bomber);if(distance2(e,g.p)<B.explosionRadius**2)hurt(g,B.enemyDamage[3]);}}
  if(!e.active && direct && e.burn>0 && g.p.ignite){
    g.fx.ring(e.x,e.y,P.bomber);
    for(const other of g.enemies.items)if(other.active&&distance2(other,e)<B.explosionRadius**2)hit(g,other,g.p.damage*g.p.ignite);
  }
  if(!direct)return;const p=g.p;p.hp=Math.min(p.maxHP,p.hp+p.leech*B.leech*healingFactor(p));e.freeze=(p.freeze||p.slow)?B.freezeTime:e.freeze;e.burn=p.burn?B.burnTime:e.burn;e.burnPower=p.burn*auxiliaryPower(p);
  const angle=Math.atan2(e.y-p.y,e.x-p.x);if (e.type !== 4) { e.x=clamp(e.x+Math.cos(angle)*B.knockback,B.track.hordeLeft,B.track.hordeRight);e.y+=Math.sin(angle)*B.knockback; }
- if(p.explosive){g.fx.ring(e.x,e.y,P.bomber);g.grid.query(e.x,e.y,B.explosionRadius,t=>{if(t!==e&&distance2(t,e)<B.explosionRadius**2)hit(g,t,damage*B.explosionRatio*p.explosive);});}
+ if(p.explosive){if(g.time>=(g.nextBlastVisual||0)){g.fx.burst(e.x,e.y,P.bomber,6,95);g.nextBlastVisual=g.time+.12;}g.grid.query(e.x,e.y,B.explosionRadius,t=>{if(t!==e&&distance2(t,e)<B.explosionRadius**2)hit(g,t,damage*B.explosionRatio*p.explosive);});}
  if(p.chain){let last=e;const visited=new Set([e.id]);for(let i=0;i<Math.min(p.chain,B.maxChain);i++){let next=null,d=B.chainRange**2;for(const t of g.enemies.items)if(t.active&&!visited.has(t.id)){const n=distance2(t,last);if(n<d){d=n;next=t;}}if(!next)break;visited.add(next.id);effect(g,{x:last.x,y:last.y,x2:next.x,y2:next.y,color:P.blue,life:.14,max:.14,width:3});if(p.synergies.has('storm'))next.freeze=B.freezeTime;hit(g,next,damage*(p.synergies.has('storm')?B.stormRatio:B.chainRatio)*(1+(p.conduction||0)));last=next;}}
 }
 function effect(g,o){if(g.effects.length<24)g.effects.push(o);}
@@ -161,7 +162,7 @@ export function updateEntities(g,dt){const p=g.p;p.squad=normalizeSquad(p.squad)
     if(b.pierce<=0)b.mass-=used;else b.pierce--;
     if(!b.mass)b.active=false;}});
  }
- for(const gem of g.gems.items)if(gem.active){gem.px=gem.x;gem.py=gem.y;if(!gem.pull)gem.y+=B.track.scroll*dt;if(gem.y>1280){gem.active=false;continue;}const d=Math.hypot(p.x-gem.x,p.y-gem.y);if(d<p.magnet)gem.pull=true;if(gem.pull){const step=Math.min(d,B.gemSpeed*dt);gem.x+=(p.x-gem.x)/(d||1)*step;gem.y+=(p.y-gem.y)/(d||1)*step;if(Math.random()<g.fx.quality*.2)g.fx.burst(gem.x,gem.y,P.player,1,15);}if(d<24){gem.active=false;p.xp+=gem.value*(1+p.xpBonus);}}
+ for(const gem of g.gems.items)if(gem.active){gem.px=gem.x;gem.py=gem.y;if(!gem.pull)gem.y+=B.track.scroll*dt;if(gem.y>1280){gem.active=false;continue;}const d=Math.hypot(p.x-gem.x,p.y-gem.y);if(d<p.magnet)gem.pull=true;if(gem.pull){const step=Math.min(d,B.gemSpeed*dt);gem.x+=(p.x-gem.x)/(d||1)*step;gem.y+=(p.y-gem.y)/(d||1)*step;if(Math.random()<g.fx.quality*.2)g.fx.burst(gem.x,gem.y,P.player,1,15);}if(d<24){gem.active=false;p.xp+=gem.value*(1+p.xpBonus);g.coins+=gem.coins||0;}}
  for(const c of g.corpses.items)if(c.active){c.life-=dt;if(c.life<=0)c.active=false;}
  for(let i=g.effects.length-1;i>=0;i--){g.effects[i].life-=dt;if(g.effects[i].life<=0)g.effects.splice(i,1);}
  p.hp=Math.min(p.hp,Math.max(0,p.maxHP-(p.breachLoss||0)));
@@ -169,10 +170,10 @@ export function updateEntities(g,dt){const p=g.p;p.squad=normalizeSquad(p.squad)
 }
 export function drawEntities(g,c,alpha){drawLoot(g,c);
  for(const d of g.corpses.items)if(d.active){c.globalAlpha=d.life/B.corpseTime*.45;sprite(c,TYPES[d.type],d.x,d.y,d.angle,d.type===4?4:1,0,false);}c.globalAlpha=1;
- for(const gem of g.gems.items)if(gem.active)sprite(c,'gem',lerp(gem.px,gem.x,alpha),lerp(gem.py,gem.y,alpha),0,1,0,g.fx.quality>.5);
+ for(const gem of g.gems.items)if(gem.active){const x=lerp(gem.px,gem.x,alpha),y=lerp(gem.py,gem.y,alpha);sprite(c,'gem',x,y,0,B.encounter.gemScale,0,false);if(gem.coins){c.strokeStyle=P.gold;c.lineWidth=2;c.beginPath();c.arc(x,y,8,0,7);c.stroke();}}
  const p=g.p;if(p.aura){c.globalAlpha=.13;c.fillStyle=p.synergies.has('eclipse')?P.bomber:P.player;c.beginPath();c.arc(p.x,p.y,B.auraRadius,0,7);c.fill();c.globalAlpha=.6;c.strokeStyle=P.player;c.stroke();c.globalAlpha=1;}
- for(const e of g.enemies.items)if(e.active){const x=lerp(e.px,e.x,alpha),y=lerp(e.py,e.y,alpha);if(e.type>=3){c.globalAlpha=.35+.2*Math.sin(g.time*6);c.strokeStyle=P[TYPES[e.type]];c.lineWidth=e.type===4?4:2;c.beginPath();c.arc(x,y,e.r+9+Math.sin(g.time*5)*5,0,7);c.stroke();c.globalAlpha=1;}sprite(c,TYPES[e.type],x,y,-Math.PI/2+Math.sin(g.time*6+e.id)*.045,e.type===4?4:1,e.flash,g.fx.quality>.5);if(e.shield>0){if(e.shieldFlash>0){c.save();c.strokeStyle=P.white;c.lineWidth=7;c.beginPath();c.arc(x,y,e.r+12+(1-e.shieldFlash/.25)*24,0,7);c.stroke();c.fillStyle=P.gold;c.font='bold 22px system-ui';c.textAlign='center';c.fillText('护盾吸收',x,y-e.r-30);c.restore();}c.strokeStyle=P.gold;c.lineWidth=4;c.strokeRect(x-e.r-5,y-e.r-5,e.r*2+10,e.r*2+10);c.fillStyle=P.gold;c.fillRect(x-e.r,y+e.r+8,e.r*2*e.shield/e.maxShield,5);}if(e.type===4&&e.stage>=B.challenge.startStage){c.fillStyle=e.cycle<B.challenge.armorSeconds?P.gold:P.player;c.font='bold 20px system-ui';c.textAlign='center';c.fillText(e.cycle<B.challenge.armorSeconds?'硬化装甲':'核心暴露 · 集火',x,y-e.r-24);}if(e.freeze>0){c.strokeStyle=P.blue;c.strokeRect(x-e.r,y-e.r,e.r*2,e.r*2);}if(e.type!==4&&e.hp<e.maxHP){c.fillStyle=P.bg;c.fillRect(x-e.r,y-e.r-10,e.r*2,4);c.fillStyle=P.hp;c.fillRect(x-e.r,y-e.r-10,e.r*2*e.hp/e.maxHP,4);}}
- for(const b of g.bullets.items)if(b.active){c.strokeStyle=b.enemy?P.boss:P.bullet;c.globalAlpha=.3;c.lineWidth=b.enemy?5:b.mass>1n?6:3;c.beginPath();c.moveTo(b.x,b.y);c.lineTo(b.x-b.vx*.035,b.y-b.vy*.035);c.stroke();c.globalAlpha=1;if(b.enemy){sprite(c,'hostile',lerp(b.px,b.x,alpha),lerp(b.py,b.y,alpha),b.angle,.6,0,g.fx.quality>.5);}else sprite(c,'bullet',lerp(b.px,b.x,alpha),lerp(b.py,b.y,alpha),b.angle,.7,0,g.fx.quality>.5);}
+ for(const e of g.enemies.items)if(e.active){const x=lerp(e.px,e.x,alpha),y=lerp(e.py,e.y,alpha);if(e.type>=3){c.globalAlpha=.35+.2*Math.sin(g.time*6);c.strokeStyle=P[TYPES[e.type]];c.lineWidth=e.type===4?4:2;c.beginPath();c.arc(x,y,e.r+9+Math.sin(g.time*5)*5,0,7);c.stroke();c.globalAlpha=1;}sprite(c,TYPES[e.type],x,y,-Math.PI/2+Math.sin(g.time*6+e.id)*.045,e.type===4?4:1,e.flash,g.fx.quality>.5);if(e.shield>0){if(e.shieldFlash>0){c.save();c.strokeStyle=P.gold;c.globalAlpha=.65;c.lineWidth=3;c.beginPath();c.arc(x,y,e.r+8+(1-e.shieldFlash/.25)*12,0,7);c.stroke();c.fillStyle=P.gold;c.font='bold 22px system-ui';c.textAlign='center';if(e.type===4)c.fillText('击破护盾后伤害生效',x,y-e.r-30);c.restore();}c.strokeStyle=P.gold;c.lineWidth=4;c.strokeRect(x-e.r-5,y-e.r-5,e.r*2+10,e.r*2+10);c.fillStyle=P.gold;c.fillRect(x-e.r,y+e.r+8,e.r*2*e.shield/e.maxShield,5);}if(e.type===4&&e.stage>=B.challenge.startStage){c.fillStyle=e.cycle<B.challenge.armorSeconds?P.gold:P.player;c.font='bold 20px system-ui';c.textAlign='center';c.fillText(e.cycle<B.challenge.armorSeconds?'硬化装甲':'核心暴露 · 集火',x,y-e.r-24);}if(e.freeze>0){c.strokeStyle=P.blue;c.strokeRect(x-e.r,y-e.r,e.r*2,e.r*2);}if(e.type!==4&&e.hp<e.maxHP){c.fillStyle=P.bg;c.fillRect(x-e.r,y-e.r-10,e.r*2,4);c.fillStyle=P.hp;c.fillRect(x-e.r,y-e.r-10,e.r*2*e.hp/e.maxHP,4);}}
+ for(const b of g.bullets.items)if(b.active){c.strokeStyle=b.enemy?P.boss:P.bullet;c.globalAlpha=.3;c.lineWidth=b.enemy?5:b.mass>1n?3:2;c.beginPath();c.moveTo(b.x,b.y);c.lineTo(b.x-b.vx*.035,b.y-b.vy*.035);c.stroke();c.globalAlpha=1;if(b.enemy){sprite(c,'hostile',lerp(b.px,b.x,alpha),lerp(b.py,b.y,alpha),b.angle,.6,0,g.fx.quality>.5);}else sprite(c,'bullet',lerp(b.px,b.x,alpha),lerp(b.py,b.y,alpha),b.angle,.48,0,false);}
  for(let i=0;i<Math.min(p.drone,B.maxSummons);i++){const a=g.time+i*6.28/Math.min(p.drone,B.maxSummons);sprite(c,'drone',p.x+Math.cos(a)*65,p.y+Math.sin(a)*65,p.angle);}
  for(let i=0;i<Math.min(p.orbit,B.maxSummons);i++){const a=g.time*2+i*6.28/Math.min(p.orbit,B.maxSummons);sprite(c,'drone',p.x+Math.cos(a)*B.orbitRadius,p.y+Math.sin(a)*B.orbitRadius,a,.65);}
  drawSquad(c,p,alpha);drawHazards(g,c);

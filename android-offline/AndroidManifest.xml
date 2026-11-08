@@ -1,5 +1,5 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.obsidian.protocol" android:versionCode="40300" android:versionName="4.3.0">
+    package="com.obsidian.protocol" android:versionCode="40700" android:versionName="4.7.0">
     <uses-sdk android:minSdkVersion="26" android:targetSdkVersion="35"/>
     <application android:label="黑曜防线" android:icon="@drawable/launcher"
         android:hardwareAccelerated="true" android:allowBackup="false"

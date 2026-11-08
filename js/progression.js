@@ -2,7 +2,7 @@ import { normalizeSquad } from './runway.js';
 import { BALANCE as B } from './config.js';
 import { UPGRADES, SYNERGIES } from './upgrades.js';
 
-export const freshProgress = () => ({ history: [], pending: 0, xp: 0, squad: '1', rerolls: null, nextStage: 1 });
+export function freshProgress(){return {history:[],pending:0,xp:0,squad:'1',rerolls:null,nextStage:1};}
 /** 只保存已选强化ID；从基础角色重放，避免跨关重复叠加永久商店属性。 */
 export function validateProgress(data) {
   if (data === undefined) return freshProgress();
@@ -12,9 +12,9 @@ export function validateProgress(data) {
       !Number.isFinite(data.xp) || data.xp < 0 ||
       typeof data.squad !== 'string' || !/^[1-9][0-9]*$/.test(data.squad) ||
       !(data.rerolls === null || (Number.isSafeInteger(data.rerolls) && data.rerolls >= 0)) ||
-      !Number.isInteger(data.nextStage) || data.nextStage < 1 || data.nextStage > B.stages)
+      !Number.isInteger(data.nextStage) || data.nextStage < 1 || data.nextStage > 15)
     throw Error('闯关成长存档不合法');
-  return { history: data.history.filter(id=>UPGRADES.some(u=>u.id===id)&&!id.startsWith('spec_')&&!UPGRADES.find(u=>u.id===id).active), inventory:Object.fromEntries(["grenade","laser","turret"].map(k=>[k,Math.max(0,Math.min(999,Math.floor(Number(data.inventory?.[k])||0)))])),gateRate:Number.isFinite(data.gateRate)?data.gateRate:null,gateDamage:Number.isFinite(data.gateDamage)?data.gateDamage:null,pending:0,weapon:Math.max(1,Number.isSafeInteger(data.weapon)?data.weapon:1), xp: data.xp, squad: String(normalizeSquad(data.squad)), rerolls: data.rerolls, nextStage: data.nextStage };
+  return { history: data.history.filter(id=>UPGRADES.some(u=>u.id===id)&&!id.startsWith('spec_')&&!UPGRADES.find(u=>u.id===id).active), inventory:Object.fromEntries(["grenade","laser","turret"].map(k=>[k,Math.max(0,Math.min(999,Math.floor(Number(data.inventory?.[k])||0)))])),gateRate:Number.isFinite(data.gateRate)?data.gateRate:null,gateDamage:Number.isFinite(data.gateDamage)?data.gateDamage:null,level:Number.isSafeInteger(data.level)&&data.level>0&&data.level<=2000?data.level:data.history.length+1,pending:0,weapon:Math.max(1,Number.isSafeInteger(data.weapon)?data.weapon:1), xp: data.xp, squad: String(normalizeSquad(data.squad)), rerolls: data.rerolls, nextStage: Math.min(B.stages,data.nextStage) };
 }
 export function xpThreshold(level) {
   let need = B.xpBase;
@@ -25,7 +25,7 @@ export function restoreProgress(p, data) {
   p.upgradeHistory = [...data.history];
   for (const id of data.history) UPGRADES.find(u => u.id === id).apply(p);
   p.inventory={...(data.inventory||{})};p.pendingUpgrades=0;p.weapon=data.weapon||1;p.gateRate=data.gateRate??((p.weapon-1)*.18/p.rate);p.gateDamage=data.gateDamage??(p.damage*(p.weapon-1)*.3);
-  p.level = data.history.length + p.pendingUpgrades + 1;
+  p.level = data.level||data.history.length+1;
   p.nextXP = xpThreshold(p.level);
   p.xp = data.xp;
   p.squad = normalizeSquad(data.squad);p.homing=0;
@@ -36,7 +36,7 @@ export function restoreProgress(p, data) {
 }
 /** 失败保留已选强化和经验；过关才更新下关的编队快照。 */
 export function captureProgress(p, previous, won = false, stage = 1) {
-  return { history: [...(p.upgradeHistory || [])], inventory:{...(p.inventory||{})},gateRate:p.gateRate||0,gateDamage:p.gateDamage||0,pending:0,weapon:p.weapon||1, xp: p.xp,
+  return { history: [...(p.upgradeHistory || [])], inventory:{...(p.inventory||{})},gateRate:p.gateRate||0,gateDamage:p.gateDamage||0,level:p.level,pending:0,weapon:p.weapon||1, xp: p.xp,
     squad: won ? String(normalizeSquad(p.squad > 0n ? p.squad : 1n)) : String(normalizeSquad(previous.squad)),
     rerolls: p.rerolls, nextStage: won ? Math.min(B.stages, stage + 1) : previous.nextStage };
 }

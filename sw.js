@@ -1,4 +1,4 @@
-const CACHE='obsidian-protocol-android-v4-3-1';
+const CACHE='obsidian-protocol-android-v4-7';
 const RESOURCES=['./','./index.html','./manifest.json','./css/style.css','./icons/icon-192.png','./icons/icon-512.png','./icons/apple-touch-icon.png','./js/config.js','./js/challenge.js','./js/utils.js','./js/assets.js','./js/save.js','./js/progression.js','./js/audio.js','./js/particles.js','./js/runway.js','./js/entities.js','./js/upgrades.js','./js/modes.js','./js/ui.js','./js/game.js','./js/icons.js','./js/shop.js','./js/combat.js','./js/loot.js','./js/main.js'];
 // 原子预缓存：任意资源失败则安装失败，不宣称离线就绪。更新版本号使新缓存完整替代旧版。
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(c=>c.addAll(RESOURCES.map(path => new Request(new URL(path, self.registration.scope), {cache:'reload'}))))));

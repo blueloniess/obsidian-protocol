@@ -74,7 +74,7 @@ def main():
             for p in (ROOT / "www").rglob("*"):
                 if p.is_file():
                     assert apk.read("assets/www/" + p.relative_to(ROOT / "www").as_posix()) == p.read_bytes()
-        target = out / "Obsidian-Protocol-4.3.0-Android.apk"
+        target = out / "Obsidian-Protocol-4.7.0-Android.apk"
         shutil.copyfile(signed, target)
         print(target, target.stat().st_size, "bytes", hashlib.sha256(target.read_bytes()).hexdigest())
 
